@@ -80,9 +80,9 @@ def test_real_recycle_bin_round_trip(make):
     pytest.importorskip("PySide6")
     path = make("cache/roundtrip.txt", content=b"diskdiet")
     report = actions.delete([path], [os.path.dirname(path)])
-    entry = journal.load()[-1]
-    if not report.deleted or not entry["location"]:
+    if not report.deleted or not journal.load()[-1]["location"]:
         pytest.skip("no Recycle Bin available here")
+    entry = journal.load()[-1]
     assert not os.path.exists(path)
     actions.restore(entry)
     assert open(path, "rb").read() == b"diskdiet"
@@ -247,3 +247,14 @@ def test_review_items_of_a_heuristic_are_its_files(tmp_path, make, monkeypatch):
 def test_every_review_question_has_two_languages():
     for text in [rules.DEFAULT_QUESTION, *rules.QUESTIONS.values()]:
         assert len(text) == 2 and all(text)
+
+
+def test_move_handles_destinations_past_260_characters(tmp_path, make):
+    deep = make("d" * 40 + "/" + "e" * 40 + "/" + "f" * 40 + "/clip.mp4", content=b"v" * 50)
+    dest = str(tmp_path / "other-drive")
+    os.mkdir(dest)
+    assert len(actions.archive_target(deep, dest)) > 260
+    report = actions.move([deep], dest)
+    assert (report.moved, report.skipped) == (50, [])
+    actions.restore(journal.load()[-1])
+    assert open(deep, "rb").read() == b"v" * 50

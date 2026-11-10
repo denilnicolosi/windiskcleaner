@@ -166,6 +166,16 @@ def delete(
     return _logged(f"delete [{source}]", report)
 
 
+def _long(path: str) -> str:
+    """Extended-length form of `path` on Windows, so paths past 260 characters still work.
+    The archive mirrors the whole original path under the destination, which easily
+    crosses that limit."""
+    if sys.platform != "win32" or path.startswith("\\\\?\\"):
+        return path
+    path = os.path.abspath(path)
+    return "\\\\?\\UNC\\" + path[2:] if path.startswith("\\\\") else "\\\\?\\" + path
+
+
 def archive_target(item: str, dest_root: str) -> str:
     """Where `item` lands under `dest_root`: its full original path, drive letter included."""
     drive, tail = os.path.splitdrive(os.path.abspath(item))
@@ -190,24 +200,25 @@ def move(
             continue
         size, files = _measure(item)
         target = archive_target(item, dest_root)
-        if os.path.lexists(target):
+        far = _long(target)
+        if os.path.lexists(far):
             report.skipped.append((item, "already present at the destination"))
             continue
         try:
             if shutil.disk_usage(dest_root).free < size + (64 << 20):
                 report.skipped.append((item, "not enough space at the destination"))
                 continue
-            os.makedirs(os.path.dirname(target), exist_ok=True)
+            os.makedirs(os.path.dirname(far), exist_ok=True)
             if _is_dir(item):
-                shutil.copytree(item, target)
+                shutil.copytree(item, far)
             else:
-                shutil.copy2(item, target)
+                shutil.copy2(item, far)
         except OSError as err:
-            shutil.rmtree(target, ignore_errors=True) if _is_dir(target) else _unlink(target)
+            shutil.rmtree(far, ignore_errors=True) if _is_dir(far) else _unlink(far)
             report.skipped.append((item, str(err)))
             continue
-        if _measure(target) != (size, files):
-            shutil.rmtree(target, ignore_errors=True) if _is_dir(target) else _unlink(target)
+        if _measure(far) != (size, files):
+            shutil.rmtree(far, ignore_errors=True) if _is_dir(far) else _unlink(far)
             report.skipped.append((item, "the copy did not match the original"))
             continue
         if _is_dir(item):
@@ -240,12 +251,12 @@ def restore(entry: dict) -> None:
         raise OSError("deleted permanently: it cannot be recovered")
     if not location:
         raise OSError("Windows did not report its place in the Recycle Bin: restore it from there")
-    if not os.path.lexists(location):
+    if not os.path.lexists(_long(location)):
         raise OSError("no longer there: the Recycle Bin was emptied or the copy was removed")
     if os.path.lexists(original):
         raise OSError("something else is now at the original location")
     os.makedirs(os.path.dirname(original), exist_ok=True)
-    shutil.move(location, original)
+    shutil.move(_long(location), original)
     if entry["mode"] == journal.TRASH:
         # The bin keeps a small $I… record beside each $R… item; drop it so no ghost remains.
         folder, name = os.path.split(location)
