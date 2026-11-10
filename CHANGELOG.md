@@ -5,6 +5,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+### Added
+
+- Rules for leftover update installers (Electron `*-updater`, Squirrel `.nupkg`, Docker
+  Desktop), graphics shader caches (NVIDIA, AMD, Intel, DirectX), Google Earth cache, new
+  Teams cache, Opera cache.
+- Browser caches now include service-worker caches, shader caches, downloaded components
+  and crash reports; VS Code caches include the C/C++ IntelliSense cache; crash dumps include
+  Crashpad reports of Electron apps and Windows Error Reporting.
+- Guidance for classic Teams leftovers, Python versions, Azure Functions Core Tools
+  versions, Clipchamp, Dart/Flutter pub cache and the pnpm store.
+- Warning before cleaning when the program that owns the files is still open.
+
+### Changed
+
+- The guided check shows the last write inside a folder, not the folder's own date.
+
+### Fixed
+
+- Rule wildcards no longer follow junctions such as `Dati applicazioni` on Italian
+  Windows, which would have counted folders twice.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

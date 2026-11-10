@@ -109,6 +109,12 @@ S: dict[str, tuple[str, str]] = {
     "rec.command": ("Command (run in an administrator terminal):", "Comando (terminale amministratore):"),
     "rec.none_checked": ("Tick at least one item.", "Seleziona almeno una voce."),
     "rec.confirm_title": ("Confirm cleanup", "Conferma pulizia"),
+    "rec.still_open": (
+        "These programs are open:\n\n{apps}\n\nClose them first, or the files they are using "
+        "will be skipped. Continue anyway?",
+        "Questi programmi sono aperti:\n\n{apps}\n\nChiudili prima, altrimenti i file che "
+        "stanno usando verranno saltati. Continuare comunque?",
+    ),
     "rec.confirm": (
         "{n:,} items, about {size}, will be removed from:\n\n{titles}\n\n{how}\n\nContinue?",
         "{n:,} elementi, circa {size}, saranno rimossi da:\n\n{titles}\n\n{how}\n\nContinuare?",

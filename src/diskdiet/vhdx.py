@@ -40,14 +40,6 @@ def diskpart_script(path: str) -> str:
     )
 
 
-def docker_running() -> bool:
-    out = subprocess.run(
-        ["tasklist", "/FI", "IMAGENAME eq Docker Desktop.exe", "/NH"],
-        capture_output=True, text=True, creationflags=NO_WINDOW,
-    ).stdout
-    return "docker desktop.exe" in out.lower()
-
-
 def _script_file(path: str) -> str:
     """Shut WSL down and write the diskpart script; returns the script's path."""
     script = diskpart_script(path)

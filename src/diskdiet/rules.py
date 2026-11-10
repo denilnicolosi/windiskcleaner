@@ -9,6 +9,7 @@ from __future__ import annotations
 import glob
 import os
 import re
+import stat
 from dataclasses import dataclass
 from enum import Enum
 
@@ -71,6 +72,7 @@ class Rule:
     commands: tuple[Command, ...] = ()  # run only when the user clicks one
     tool: str = ""  # executable, shell: folder or ms-settings: URI; "a|b" = first that exists
     permanent: bool = False  # DELETE bypasses the Recycle Bin (temporary files only)
+    process: str = ""  # executable to close first ("chrome.exe"): the UI warns if it runs
 
     def resolve(self) -> list[str]:
         """Existing paths this rule points at on this machine."""
@@ -79,11 +81,30 @@ class Rule:
             expanded = os.path.expandvars(pattern)
             if "%" in expanded:  # variable not defined here
                 continue
-            found.extend(glob.glob(expanded))
+            found.extend(p for p in glob.glob(expanded) if not _through_link(p, expanded))
         return found
 
 
+def _through_link(path: str, pattern: str) -> bool:
+    """True when a wildcard of `pattern` matched a junction or symlink. The folder would be
+    found twice: on Italian Windows `%LOCALAPPDATA%\\*` also matches the legacy junction
+    `Dati applicazioni`, which points back at %LOCALAPPDATA% itself."""
+    parts = path.split(os.sep)
+    for i, part in enumerate(pattern.split(os.sep)):
+        if not re.search(r"[*?[]", part):
+            continue
+        sub = os.sep.join(parts[: i + 1])
+        try:
+            attrs = getattr(os.lstat(sub), "st_file_attributes", 0)
+        except OSError:
+            return True
+        if attrs & stat.FILE_ATTRIBUTE_REPARSE_POINT or os.path.islink(sub):
+            return True
+    return False
+
+
 L, R, U, PD, W = "%LOCALAPPDATA%", "%APPDATA%", "%USERPROFILE%", "%PROGRAMDATA%", "%WINDIR%"
+LL = r"%USERPROFILE%\AppData\LocalLow"
 
 # Offered before every command that changes Windows itself. A restore point covers system
 # files and the registry, not the user's own files: for those there is the Recycle Bin.
@@ -95,10 +116,18 @@ RESTORE_POINT = Command(
 )
 
 _BROWSER_WHY = (
-    "Copies of web pages and scripts kept to load sites faster. Rebuilt as you browse; "
-    "logins and bookmarks are not touched. Close the browser first.",
-    "Copie di pagine e script tenute per caricare i siti più in fretta. Si ricreano navigando; "
-    "accessi e preferiti non vengono toccati. Chiudi prima il browser.",
+    "Copies of web pages, scripts, compiled shaders and downloaded components kept to load "
+    "sites faster. Rebuilt as you browse; logins, bookmarks and site data are not touched. "
+    "Close the browser first.",
+    "Copie di pagine, script, shader compilati e componenti scaricati tenute per caricare i "
+    "siti più in fretta. Si ricreano navigando; accessi, preferiti e dati dei siti non vengono "
+    "toccati. Chiudi prima il browser.",
+)
+_UPDATE_WHY = (
+    "Installers of updates that are already installed, kept by the programs' updaters "
+    "(Electron, Squirrel). A program downloads its next update again when needed.",
+    "Installer di aggiornamenti già installati, tenuti dagli updater dei programmi "
+    "(Electron, Squirrel). Il programma riscarica l'aggiornamento successivo quando serve.",
 )
 _PKG_WHY = (
     "Downloaded packages kept to speed up future installs. Installed environments keep "
@@ -108,9 +137,27 @@ _PKG_WHY = (
 )
 
 
-def _browser(rule_id: str, name: str, base: str) -> Rule:
-    paths = tuple(rf"{base}\*\{d}" for d in ("Cache", "Code Cache", "GPUCache"))
-    return Rule(rule_id, "browser", paths, Safety.SAFE, Action.DELETE, f"{name} cache", _BROWSER_WHY)
+# Inside each profile of a Chromium "User Data" folder (also WebView2 and Electron apps).
+# Never IndexedDB, Local Storage or Service Worker\Database: those are the sites' own data.
+_PROFILE_CACHES = (
+    "Cache", "Code Cache", "GPUCache", "DawnGraphiteCache", "DawnWebGPUCache",
+    r"Service Worker\CacheStorage", r"Service Worker\ScriptCache",
+)
+# Directly inside "User Data". Snapshots only serve a rollback to the previous version.
+_SHARED_CACHES = (
+    "GrShaderCache", "GraphiteDawnCache", "ShaderCache", "component_crx_cache",
+    "extensions_crx_cache", "Snapshots", r"Crashpad\reports",
+)
+
+
+def _chromium(base: str) -> tuple[str, ...]:
+    return (tuple(rf"{base}\*\{d}" for d in _PROFILE_CACHES)
+            + tuple(rf"{base}\{d}" for d in _SHARED_CACHES))
+
+
+def _browser(rule_id: str, name: str, base: str, process: str) -> Rule:
+    return Rule(rule_id, "browser", _chromium(base), Safety.SAFE, Action.DELETE,
+                f"{name} cache", _BROWSER_WHY, process=process)
 
 
 RULES: tuple[Rule, ...] = (
@@ -136,7 +183,10 @@ RULES: tuple[Rule, ...] = (
         permanent=True,
     ),
     Rule(
-        "crash_dumps", "temp", (rf"{L}\CrashDumps", rf"{U}\*.hprof", rf"{U}\*.dmp"),
+        "crash_dumps", "temp",
+        (rf"{L}\CrashDumps", rf"{U}\*.hprof", rf"{U}\*.dmp",
+         rf"{L}\*\Crashpad\reports", rf"{R}\*\Crashpad\reports",
+         rf"{L}\Microsoft\Windows\WER\ReportArchive", rf"{L}\Microsoft\Windows\WER\ReportQueue"),
         Safety.SAFE, Action.DELETE,
         ("Crash dumps", "Dump di crash"),
         (
@@ -146,12 +196,21 @@ RULES: tuple[Rule, ...] = (
         ),
     ),
     # ---- browsers --------------------------------------------------------------------
-    _browser("chrome_cache", "Google Chrome", rf"{L}\Google\Chrome\User Data"),
-    _browser("edge_cache", "Microsoft Edge", rf"{L}\Microsoft\Edge\User Data"),
-    _browser("brave_cache", "Brave", rf"{L}\BraveSoftware\Brave-Browser\User Data"),
+    _browser("chrome_cache", "Google Chrome", rf"{L}\Google\Chrome\User Data", "chrome.exe"),
+    _browser("edge_cache", "Microsoft Edge", rf"{L}\Microsoft\Edge\User Data", "msedge.exe"),
+    _browser("brave_cache", "Brave", rf"{L}\BraveSoftware\Brave-Browser\User Data", "brave.exe"),
     Rule(
         "firefox_cache", "browser", (rf"{L}\Mozilla\Firefox\Profiles\*\cache2",),
-        Safety.SAFE, Action.DELETE, "Mozilla Firefox cache", _BROWSER_WHY,
+        Safety.SAFE, Action.DELETE, "Mozilla Firefox cache", _BROWSER_WHY, process="firefox.exe",
+    ),
+    Rule(
+        # Opera splits its profile: settings and code caches in Roaming, page cache in Local.
+        "opera_cache", "browser",
+        _chromium(rf"{R}\Opera Software\*")
+        + tuple(rf"{R}\Opera Software\*\{d}" for d in _PROFILE_CACHES)
+        + tuple(rf"{L}\Opera Software\{p}\{d}"
+                for p in ("*", r"*\Default") for d in ("Cache", "System Cache")),
+        Safety.SAFE, Action.DELETE, "Opera cache", _BROWSER_WHY, process="opera.exe",
     ),
     # ---- developer caches: safe ------------------------------------------------------
     Rule("pip_cache", "dev", (rf"{L}\pip\cache",), Safety.SAFE, Action.DELETE,
@@ -165,15 +224,18 @@ RULES: tuple[Rule, ...] = (
     Rule(
         "vscode_cache", "dev",
         tuple(rf"{R}\Code\{d}" for d in
-              ("Cache", "Code Cache", "CachedData", "CachedExtensionVSIXs", "logs")),
+              ("Cache", "Code Cache", "CachedData", "CachedExtensionVSIXs", "logs", "GPUCache",
+               r"Service Worker\CacheStorage", r"Service Worker\ScriptCache"))
+        + (rf"{L}\Microsoft\vscode-cpptools\ipch",),
         Safety.SAFE, Action.DELETE,
         ("VS Code caches", "Cache di VS Code"),
         (
-            "Caches, logs and downloaded extension packages. Settings and installed "
-            "extensions are not touched. Close VS Code first.",
-            "Cache, log e pacchetti di estensioni scaricati. Impostazioni ed estensioni "
-            "installate non vengono toccate. Chiudi prima VS Code.",
+            "Caches, logs, downloaded extension packages and the C/C++ IntelliSense cache. "
+            "Settings and installed extensions are not touched. Close VS Code first.",
+            "Cache, log, pacchetti di estensioni scaricati e cache IntelliSense C/C++. "
+            "Impostazioni ed estensioni installate non vengono toccate. Chiudi prima VS Code.",
         ),
+        process="Code.exe",
     ),
     Rule(
         "jetbrains_tmp", "dev", (rf"{L}\JetBrains\*\tmp",), Safety.SAFE, Action.DELETE,
@@ -205,6 +267,58 @@ RULES: tuple[Rule, ...] = (
         Safety.SAFE, Action.DELETE,
         ("Raspberry Pi Imager cache", "Cache di Raspberry Pi Imager"),
         ("Last downloaded OS image.", "Ultima immagine di sistema scaricata."),
+    ),
+    # ---- programs: safe --------------------------------------------------------------
+    Rule(
+        "app_update_leftovers", "apps",
+        (rf"{L}\*-updater\installer.exe", rf"{L}\*-updater\pending", rf"{L}\*-updater\package.7z",
+         rf"{L}\*\packages\*.nupkg", rf"{L}\Docker Desktop Installer\update-*.exe"),
+        Safety.SAFE, Action.DELETE,
+        ("Leftover update installers", "Installer di aggiornamento rimasti"),
+        _UPDATE_WHY,
+    ),
+    Rule(
+        "shader_caches", "apps",
+        (rf"{LL}\NVIDIA\DXCache", rf"{LL}\NVIDIA\GLCache", rf"{L}\NVIDIA\DXCache",
+         rf"{L}\NVIDIA\GLCache", rf"{R}\NVIDIA\ComputeCache", rf"{L}\D3DSCache",
+         rf"{L}\AMD\DxCache", rf"{L}\AMD\DxcCache", rf"{L}\AMD\GLCache", rf"{L}\AMD\VkCache",
+         rf"{LL}\Intel\ShaderCache"),
+        Safety.SAFE, Action.DELETE,
+        ("Graphics shader caches", "Cache degli shader grafici"),
+        (
+            "Shaders compiled by the graphics driver for games and 3D programs. Rebuilt "
+            "automatically: the first launch of a game may stutter briefly. Files in use are "
+            "skipped.",
+            "Shader compilati dal driver grafico per giochi e programmi 3D. Si ricreano da soli: "
+            "il primo avvio di un gioco può scattare per poco. I file in uso vengono saltati.",
+        ),
+    ),
+    Rule(
+        "google_earth_cache", "apps", (rf"{LL}\Google\GoogleEarth\Cache",),
+        Safety.SAFE, Action.DELETE,
+        ("Google Earth cache", "Cache di Google Earth"),
+        (
+            "Map tiles and imagery already viewed. Downloaded again as you explore; saved "
+            "places are not touched. Close Google Earth first.",
+            "Riquadri di mappa e immagini già viste. Si riscaricano esplorando; i luoghi salvati "
+            "non vengono toccati. Chiudi prima Google Earth.",
+        ),
+        process="googleearth.exe",
+    ),
+    Rule(
+        "teams_cache", "apps",
+        _chromium(rf"{L}\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView")
+        + (rf"{L}\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Logs",),
+        Safety.SAFE, Action.DELETE,
+        ("Microsoft Teams cache", "Cache di Microsoft Teams"),
+        (
+            "Web cache and logs of the new Teams. Rebuilt at the next start; chats, sign-in "
+            "and custom backgrounds are not touched. Quit Teams first (tray icon → Quit).",
+            "Cache web e log del nuovo Teams. Si ricreano al prossimo avvio; chat, accesso e "
+            "sfondi personalizzati non vengono toccati. Chiudi prima Teams (icona nell'area "
+            "di notifica → Esci).",
+        ),
+        process="ms-teams.exe",
     ),
     # ---- developer caches and tools: the user decides --------------------------------
     Rule(
@@ -309,6 +423,60 @@ RULES: tuple[Rule, ...] = (
         ),
     ),
     Rule(
+        "pub_cache", "dev", (rf"{L}\Pub\Cache",), Safety.CAUTION, Action.GUIDE,
+        ("Dart / Flutter package cache", "Cache dei pacchetti Dart / Flutter"),
+        (
+            "Packages of every Dart and Flutter project. After the clean-up each project needs "
+            "“flutter pub get” again, and globally activated tools are removed.",
+            "Pacchetti di tutti i progetti Dart e Flutter. Dopo la pulizia ogni progetto richiede "
+            "di nuovo “flutter pub get” e gli strumenti attivati globalmente vengono rimossi.",
+        ),
+        commands=(
+            Command(("Clean the package cache", "Pulisci la cache dei pacchetti"),
+                    ("cmd", "/c", "dart", "pub", "cache", "clean", "--force"), changes=True),
+        ),
+    ),
+    Rule(
+        "pnpm_store", "dev", (rf"{L}\pnpm\store",), Safety.CAUTION, Action.GUIDE,
+        ("pnpm store", "Archivio di pnpm"),
+        (
+            "Packages shared by every pnpm project through hard links. Do not delete it by hand: "
+            "“pnpm store prune” removes only the packages no project uses.",
+            "Pacchetti condivisi da tutti i progetti pnpm tramite hard link. Non eliminarlo a "
+            "mano: “pnpm store prune” rimuove solo i pacchetti che nessun progetto usa.",
+        ),
+        commands=(
+            Command(("Remove unused packages", "Rimuovi i pacchetti inutilizzati"),
+                    ("cmd", "/c", "pnpm", "store", "prune"), changes=True),
+        ),
+    ),
+    Rule(
+        "python_versions", "dev", (rf"{L}\Programs\Python\Python*",), Safety.CAUTION, Action.GUIDE,
+        ("Python versions", "Versioni di Python"),
+        (
+            "Every Python installed for this user, with its packages. Keep the versions your "
+            "projects use and uninstall the others from Installed apps: deleting the folder "
+            "leaves the uninstaller and the py launcher pointing at nothing.",
+            "Ogni Python installato per questo utente, con i suoi pacchetti. Tieni le versioni "
+            "usate dai tuoi progetti e disinstalla le altre da App installate: eliminare la "
+            "cartella lascia il programma di disinstallazione e il launcher py senza bersaglio.",
+        ),
+        commands=(Command(("List installed versions", "Elenca le versioni installate"),
+                          ("py", "-0p")),),
+        tool="ms-settings:appsfeatures",
+    ),
+    Rule(
+        "azure_func_tools", "dev", (rf"{L}\AzureFunctionsTools\Releases",),
+        Safety.CAUTION, Action.REVIEW,
+        ("Azure Functions Core Tools versions", "Versioni di Azure Functions Core Tools"),
+        (
+            "Downloaded by Visual Studio, one folder per version. Versions your Functions "
+            "projects do not target can go; Visual Studio downloads them again if needed.",
+            "Scaricate da Visual Studio, una cartella per versione. Le versioni non usate dai "
+            "tuoi progetti Functions si possono togliere; Visual Studio le riscarica se servono.",
+        ),
+    ),
+    Rule(
         "docker_data", "dev", (rf"{L}\Docker\wsl",), Safety.CAUTION, Action.GUIDE,
         ("Docker images, containers and volumes", "Immagini, container e volumi Docker"),
         (
@@ -350,6 +518,34 @@ RULES: tuple[Rule, ...] = (
             "Pacchetti driver scaricati e tenuti dopo l'installazione. Rimuoverli richiede "
             "diritti di amministratore e impedisce solo di reinstallare senza riscaricare.",
         ),
+    ),
+    Rule(
+        "teams_classic", "apps", (rf"{L}\Microsoft\Teams", rf"{R}\Microsoft\Teams"),
+        Safety.CAUTION, Action.REVIEW,
+        ("Classic Microsoft Teams", "Microsoft Teams classico"),
+        (
+            "Program files and cache of the old Teams, retired by Microsoft in 2024. The new "
+            "Teams keeps its data elsewhere. Uninstall “Microsoft Teams classic” from Installed "
+            "apps first if it is still listed.",
+            "File del programma e cache del vecchio Teams, ritirato da Microsoft nel 2024. Il "
+            "nuovo Teams tiene i suoi dati altrove. Se “Microsoft Teams classic” è ancora tra "
+            "le App installate, disinstallalo prima da lì.",
+        ),
+        process="Teams.exe",
+    ),
+    Rule(
+        "clipchamp", "apps", (rf"{L}\Packages\Clipchamp.Clipchamp_*\LocalState\EBWebView",),
+        Safety.CAUTION, Action.GUIDE,
+        ("Clipchamp projects and media", "Progetti e media di Clipchamp"),
+        (
+            "Clipchamp stores imported media and projects in its web storage. Delete unneeded "
+            "projects inside Clipchamp. Installed apps → Clipchamp → Advanced options → Reset "
+            "empties everything, including projects not yet exported.",
+            "Clipchamp conserva media importati e progetti nella sua memoria web. Elimina da "
+            "Clipchamp i progetti che non servono. App installate → Clipchamp → Opzioni avanzate "
+            "→ Reimposta svuota tutto, compresi i progetti non ancora esportati.",
+        ),
+        tool="ms-settings:appsfeatures",
     ),
     # ---- Windows ---------------------------------------------------------------------
     Rule(
@@ -478,6 +674,10 @@ QUESTIONS: dict[str, Text] = {
                     "Non modificato da due anni. Deve restare sul disco di sistema?"),
     "idle_projects": ("Untouched for six months and rebuildable. Keep it?",
                       "Non toccata da sei mesi e rigenerabile. Tenerla?"),
+    "azure_func_tools": ("Do your Functions projects still target this version?",
+                         "I tuoi progetti Functions usano ancora questa versione?"),
+    "teams_classic": ("Classic Teams is retired. Remove this part of it?",
+                      "Teams classico è ritirato. Rimuovere questa sua parte?"),
     "appdata_orphans": ("Do you recognise the program this folder belongs to?",
                         "Riconosci il programma a cui appartiene questa cartella?"),
 }

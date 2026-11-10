@@ -57,6 +57,12 @@ When unsure, choose `CAUTION`. A `SAFE` rule must be safe on every machine, not 
   URI. For a program installed in different places write the candidates separated by
   `|` (see `lmstudio`). If a program has its own way of removing things and deleting its
   folders by hand breaks it, use `Action.GUIDE` with `tool=` rather than `REVIEW`.
+- `process` is the executable that should be closed first (`"chrome.exe"`). If it is
+  running, the UI warns before cleaning or opening the guided check.
+- A wildcard never matches through a junction or symlink (`Rule.resolve` drops those
+  matches), so `%LOCALAPPDATA%\*\...` does not also walk the legacy `Dati applicazioni` /
+  `Application Data` junction. For Chromium-style `User Data` folders (browsers, WebView2,
+  Electron) build the paths with `_chromium(base)`: it lists only caches, never site data.
 - `permanent=True` (skip the Recycle Bin) is reserved for the `temp` category.
 - Never point a rule inside `C:\Windows` (other than `Temp`) or `Program Files`:
   `actions.is_protected` would refuse to delete there anyway.

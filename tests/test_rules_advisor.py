@@ -99,3 +99,83 @@ def test_orphans_need_no_matching_program(tmp_path, make, monkeypatch):
     programs = [Program("Arduino IDE", "Arduino SA", 0, "")]
     recs = {r.id: r for r in advisor.build(scan(str(tmp_path)), programs=programs)}
     assert recs["appdata_orphans"].paths == [os.path.join(str(local), "Leftover")]
+
+
+TEAMS = "Local/Packages/MSTeams_8wekyb3d8bbwe/LocalCache/Microsoft/MSTeams"
+
+
+@pytest.mark.parametrize("rule_id, files", [
+    ("app_update_leftovers", ["Local/foo-updater/installer.exe", "Local/foo-updater/pending/u.exe",
+                              "Local/Bar/packages/Bar-1.0-full.nupkg"]),
+    ("shader_caches", ["LocalLow/NVIDIA/DXCache/a.bin", "Roaming/NVIDIA/ComputeCache/b.bin"]),
+    ("google_earth_cache", ["LocalLow/Google/GoogleEarth/Cache/tiles.dat"]),
+    ("teams_cache", [f"{TEAMS}/EBWebView/WV2Profile_tfw/Cache/a", f"{TEAMS}/Logs/x.log"]),
+    ("chrome_cache", ["Local/Google/Chrome/User Data/Default/Service Worker/CacheStorage/a",
+                      "Local/Google/Chrome/User Data/component_crx_cache/b"]),
+    ("opera_cache", ["Local/Opera Software/Opera Stable/Cache/a",
+                     "Roaming/Opera Software/Opera Stable/Code Cache/b"]),
+    ("crash_dumps", ["Roaming/Code/Crashpad/reports/a.dmp"]),
+    ("vscode_cache", ["Local/Microsoft/vscode-cpptools/ipch/a.ipch"]),
+    ("teams_classic", ["Roaming/Microsoft/Teams/Service Worker/a"]),
+    ("clipchamp", ["Local/Packages/Clipchamp.Clipchamp_yxz26nhyzhsrt/LocalState/EBWebView/a"]),
+    ("pub_cache", ["Local/Pub/Cache/hosted/a"]),
+    ("pnpm_store", ["Local/pnpm/store/v3/a"]),
+    ("python_versions", ["Local/Programs/Python/Python39/python.exe"]),
+    ("azure_func_tools", ["Local/AzureFunctionsTools/Releases/4.0.0/func.exe"]),
+])
+def test_appdata_rules(rule_id, files, tmp_path, make, monkeypatch):
+    profile = tmp_path / "me"
+    monkeypatch.setenv("USERPROFILE", str(profile))
+    monkeypatch.setenv("LOCALAPPDATA", str(profile / "AppData" / "Local"))
+    monkeypatch.setenv("APPDATA", str(profile / "AppData" / "Roaming"))
+    for rel in files:
+        make(f"me/AppData/{rel}", 100)
+    make(f"me/AppData/{TEAMS}/Backgrounds/mine.png", 7)  # the user's own: never a cache
+    make("me/AppData/Local/Google/Chrome/User Data/Default/IndexedDB/site.db", 7)
+    result = scan(str(tmp_path), watch_paths=rules.watch_paths())
+    rec = {r.id: r for r in advisor.build(result)}[rule_id]
+    assert rec.size == 100 * len(files)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="junctions")
+def test_wildcards_do_not_follow_junctions(tmp_path, make):
+    import _winapi
+
+    make("Local/App/Cache/a.bin", 5)
+    try:  # like "Dati applicazioni" -> %LOCALAPPDATA% on Italian Windows
+        _winapi.CreateJunction(str(tmp_path / "Local"), str(tmp_path / "Local" / "Legacy"))
+    except OSError:
+        pytest.skip("cannot create junctions here")
+    rule = rules.Rule("t", "temp", (rf"{tmp_path}\Local\*\*\Cache",), Safety.SAFE, Action.DELETE,
+                      "t", "t")
+    assert rule.resolve() == []  # Local\Legacy\App\Cache is Local\App\Cache seen again
+    rule = rules.Rule("t", "temp", (rf"{tmp_path}\Local\*\Cache",), Safety.SAFE, Action.DELETE,
+                      "t", "t")
+    assert rule.resolve() == [str(tmp_path / "Local" / "App" / "Cache")]
+
+
+def test_review_shows_last_write_inside_a_folder(tmp_path, make, monkeypatch):
+    local = tmp_path / "AppData" / "Local"
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "AppData" / "Roaming"))
+    old = time.time() - 900 * advisor.DAY
+    make("AppData/Local/Leftover/data.bin", advisor.ORPHAN_MIN, mtime=old)
+    result = scan(str(tmp_path))
+    recs = {r.id: r for r in advisor.build(result, programs=[Program("X", "Y", 0, "")])}
+    [item] = advisor.review_items(recs["appdata_orphans"], result)
+    assert item.mtime == pytest.approx(old)
+
+
+def test_new_rules_name_the_program_to_close():
+    procs = {r.id: r.process for r in rules.RULES}
+    assert procs["chrome_cache"] == "chrome.exe" and procs["teams_cache"] == "ms-teams.exe"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="tasklist")
+def test_running_finds_this_process():
+    import sys
+
+    from diskdiet import system
+
+    assert system.running(os.path.basename(sys.executable))
+    assert not system.running("surely-not-running-diskdiet-test.exe")

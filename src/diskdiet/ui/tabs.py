@@ -361,6 +361,8 @@ class RecPanel(QWidget):
         rec = self.current()
         if not rec or rec.action is not Action.REVIEW:
             return
+        if not self.closed_first([rec]):
+            return
         archive = rec.category == "archive"
         dialog = ReviewDialog(self.win, rec, archive, self.win.archive_destination())
         if not dialog.items:
@@ -379,12 +381,22 @@ class RecPanel(QWidget):
                     found.append(item)
         return found
 
+    def closed_first(self, recs) -> bool:
+        """False if the user stops because a program that owns these files is still open."""
+        open_now = sorted({r.process for r in recs if r.process and system.running(r.process)})
+        if not open_now:
+            return True
+        return confirm(self, tr("rec.confirm_title"),
+                       tr("rec.still_open", apps="\n".join(f"• {p}" for p in open_now)))
+
     def clean_checked(self) -> None:
         items = self.checked()
         if not items:
             QMessageBox.information(self, tr("rec.confirm_title"), tr("rec.none_checked"))
             return
         recs = [item.data(0, ROLE) for item in items]
+        if not self.closed_first(recs):
+            return
         plan = [(rec, actions.preview(rec.paths)) for rec in recs]
         how = "rec.how_permanent" if any(r.permanent for r in recs) else "rec.how_trash"
         text = tr(
@@ -595,7 +607,7 @@ class SystemTab(QWidget):
 
     def compact_selected(self) -> None:
         kind, path = self.selected()
-        if kind == "docker" and vhdx.docker_running():
+        if kind == "docker" and system.running("Docker Desktop.exe"):
             QMessageBox.warning(self, tr("vhdx.title"), tr("vhdx.docker_running"))
             return
         if not confirm(self, tr("vhdx.title"), tr("vhdx.confirm", path=path)):

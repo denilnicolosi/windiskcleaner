@@ -46,6 +46,7 @@ class Recommendation:
     permanent: bool = False
     question: str = ""  # asked for each item by the guided check
     expand: bool = False  # the guided check looks at what is inside `paths`
+    process: str = ""  # program to close first (rules.Rule.process)
 
 
 def measure(path: str, result: ScanResult | None = None) -> int:
@@ -74,7 +75,7 @@ def _from_rule(rule: Rule, result: ScanResult) -> Recommendation | None:
     return Recommendation(
         rule.id, rule.category, rule.safety, rule.action, pick(rule.title), pick(rule.why),
         size, paths, rule.commands, rule.tool, rule.permanent,
-        question=pick(question(rule.id)), expand=True,
+        question=pick(question(rule.id)), expand=True, process=rule.process,
     )
 
 
@@ -272,5 +273,8 @@ def review_items(rec: Recommendation, result: ScanResult | None = None) -> list[
             mtime = os.lstat(path).st_mtime
         except OSError:
             continue  # gone since the scan
+        node = result.find(path) if result is not None else None
+        if node is not None and node.newest:
+            mtime = node.newest  # last write inside a folder, not the folder's own date
         items.append(FileInfo(measure(path, result), mtime, path))
     return sorted(items, reverse=True)

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import shutil
 import string
+import subprocess
 import sys
 from dataclasses import dataclass
 
 UNINSTALL = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
 DRIVE_FIXED = 3
+NO_WINDOW = 0x08000000
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,20 @@ def volumes() -> list[Volume]:
         fixed = kernel32.GetDriveTypeW(root) == DRIVE_FIXED
         found.append(Volume(root, usage.total, usage.free, fixed))
     return found
+
+
+def running(image: str) -> bool:
+    """Whether a process with this executable name ("chrome.exe") is running."""
+    if sys.platform != "win32" or not image:
+        return False
+    try:
+        out = subprocess.run(
+            ["tasklist", "/FI", f"IMAGENAME eq {image}", "/NH"],
+            capture_output=True, text=True, timeout=10, creationflags=NO_WINDOW,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return image.lower() in out.lower()
 
 
 def installed_programs() -> list[Program]:
