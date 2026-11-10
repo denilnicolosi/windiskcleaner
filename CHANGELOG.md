@@ -23,6 +23,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Changed
 
+- Rebuildable project folders cover more tools (.next, .nuxt, .tox, .dart_tool, Rust
+  `target`, .NET `bin`/`obj`, caches of pytest, mypy, ruff…) and generic names such as
+  `build` or `bin` count only when the project file is beside them.
 - The guided check shows the last write inside a folder, not the folder's own date.
 
 ### Fixed

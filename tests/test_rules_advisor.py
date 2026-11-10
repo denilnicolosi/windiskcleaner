@@ -179,3 +179,22 @@ def test_running_finds_this_process():
 
     assert system.running(os.path.basename(sys.executable))
     assert not system.running("surely-not-running-diskdiet-test.exe")
+
+
+def test_build_folders_need_their_project_file(tmp_path, make, monkeypatch):
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    old = time.time() - 400 * advisor.DAY
+    make("code/rust/Cargo.toml", 1)
+    make("code/rust/target/debug/app.exe", 2000, mtime=old)
+    make("code/web/package.json", 1)
+    make("code/web/.next/cache/x", 2000, mtime=old)
+    make("code/net/App.csproj", 1)
+    make("code/net/obj/x.dll", 2000, mtime=old)
+    make("Documents/target/plan.docx", 2000, mtime=old)  # the user's own "target" folder
+    make("Documents/bin/tool.exe", 2000, mtime=old)
+    result = scan(str(tmp_path), watch_names=advisor.REGENERABLE)
+    rec = {r.id: r for r in advisor.build(result)}["idle_projects"]
+    code = tmp_path / "code"
+    assert sorted(rec.paths) == sorted(
+        str(p) for p in (code / "rust" / "target", code / "web" / ".next", code / "net" / "obj")
+    )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import os
 import re
 import time
@@ -21,7 +22,27 @@ ARCHIVE_MIN = 100 << 20
 ORPHAN_MIN = 500 << 20
 
 # Folder names that a build tool can recreate from the project's own files.
-REGENERABLE = ("node_modules", ".venv", "venv", "target", "build", ".gradle")
+# Rebuildable folder -> files that must sit next to it for it to be a project's build output
+# (glob patterns). () = the name alone is proof. Generic names like "build" or "bin" need a
+# marker: without one they may be the user's own folders.
+_JS = ("package.json",)
+_PY = ("pyproject.toml", "setup.py", "setup.cfg", "requirements*.txt", "Pipfile", "uv.lock")
+_GRADLE = ("build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts")
+_DOTNET = ("*.csproj", "*.fsproj", "*.vbproj", "*.sln")
+MARKERS: dict[str, tuple[str, ...]] = {
+    "node_modules": (), ".next": _JS, ".nuxt": _JS, ".svelte-kit": _JS, ".turbo": _JS,
+    ".angular": ("angular.json",), ".parcel-cache": (), "dist": _JS + _PY,
+    ".venv": (), "venv": _PY, ".tox": ("tox.ini",) + _PY, ".nox": ("noxfile.py",),
+    ".pytest_cache": (), ".mypy_cache": (), ".ruff_cache": (), "__pycache__": (),
+    "target": ("Cargo.toml", "pom.xml"),
+    "build": _GRADLE + _JS + _PY + ("CMakeLists.txt", "pubspec.yaml", "meson.build"),
+    ".gradle": _GRADLE, ".dart_tool": ("pubspec.yaml",), ".cxx": _GRADLE,
+    "bin": _DOTNET, "obj": _DOTNET,
+}
+# ponytail: the scanner stops looking for names inside a matched folder, so a project kept
+# inside a plain folder called "build" or "bin" (no marker) is not seen. Rare; pass the
+# markers to the scanner if it shows up.
+REGENERABLE = tuple(MARKERS)
 
 VIDEO = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".wav"}
 VM_DISK = {".vmdk", ".vdi", ".vhd", ".iso", ".ova"}
@@ -177,13 +198,22 @@ def _archive(result: ScanResult, now: float, old_days: int) -> list[Recommendati
     ]
 
 
+def is_build_output(path: str) -> bool:
+    """The folder's name is a known build/dependency folder and its project file is beside it."""
+    markers = MARKERS.get(os.path.basename(path).lower())
+    if markers is None:
+        return False
+    parent = os.path.dirname(path)
+    return not markers or any(glob.glob(os.path.join(glob.escape(parent), m)) for m in markers)
+
+
 def _idle_projects(result: ScanResult, now: float) -> Recommendation | None:
     # ponytail: "idle" = nothing written inside the regenerable folder itself for 6 months.
     # Looking at the surrounding project's own files would be more exact.
     idle = [
         n for n in result.named
         if n.size >= IDLE_PROJECT_MIN and _in_user_docs(n.path)
-        and (now - n.newest) / DAY > IDLE_PROJECT_DAYS
+        and (now - n.newest) / DAY > IDLE_PROJECT_DAYS and is_build_output(n.path)
     ]
     if not idle:
         return None
