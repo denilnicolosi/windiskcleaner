@@ -160,6 +160,7 @@ class MainWindow(QMainWindow):
         menu = self.menuBar().addMenu(tr("ui.file"))
         menu.addAction(tr("ui.export_json"), lambda: self.export("json"))
         menu.addAction(tr("ui.export_html"), lambda: self.export("html"))
+        menu.addAction(tr("ui.export_csv"), lambda: self.export("csv"))
         self.menuBar().addAction(tr("ui.settings"), self.open_settings)
 
         # bottom bar: what is being done right now, and how far along it is
@@ -332,8 +333,11 @@ class MainWindow(QMainWindow):
         if not path:
             return
         data = report.to_dict(self.result, self.recs, self.programs)
-        text = json.dumps(data, indent=2) if kind == "json" else report.to_html(data)
-        with open(path, "w", encoding="utf-8") as f:
+        if kind == "csv":
+            text = report.to_csv(self.result)
+        else:
+            text = json.dumps(data, indent=2) if kind == "json" else report.to_html(data)
+        with open(path, "w", encoding="utf-8", newline="") as f:
             f.write(text)
 
     # ---- settings --------------------------------------------------------------------

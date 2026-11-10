@@ -1,7 +1,10 @@
-"""Export of a scan as a plain dict (JSON) or a self-contained HTML page."""
+"""Export of a scan as a plain dict (JSON), a self-contained HTML page or a CSV table."""
 
 from __future__ import annotations
 
+import csv
+import io
+from datetime import datetime
 from html import escape
 
 from diskdiet import __version__
@@ -31,6 +34,25 @@ def to_dict(result, recs, programs=()) -> dict:
         ],
         "programs": [{"name": p.name, "size": p.size} for p in programs],
     }
+
+
+def to_csv(result) -> str:
+    """Every folder of the scan tree and every tracked file, one row each, for Excel or
+    a script. Sizes in bytes. Starts with a BOM so Excel reads the accents right."""
+    out = io.StringIO()
+    out.write("\ufeff")
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(["kind", "path", "bytes", "files", "modified"])
+    stack = [result.root]
+    while stack:
+        node = stack.pop()
+        when = datetime.fromtimestamp(node.newest).strftime("%Y-%m-%d") if node.newest else ""
+        writer.writerow(["folder", node.path, node.size, node.files, when])
+        stack += node.children
+    for f in sorted(result.big_files, reverse=True):
+        writer.writerow(["file", f.path, f.size, 1,
+                         datetime.fromtimestamp(f.mtime).strftime("%Y-%m-%d")])
+    return out.getvalue()
 
 
 def _table(head: list[str], rows: list[list[str]]) -> str:

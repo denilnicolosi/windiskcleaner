@@ -108,6 +108,7 @@ S: dict[str, tuple[str, str]] = {
     "kind.file.other": ("Other", "Altro"),
     "ui.treemap": ("Treemap view", "Vista a riquadri"),
     "ui.pie": ("Pie view", "Vista a torta"),
+    "ui.export_csv": ("Export folders and files as CSV…", "Esporta cartelle e file in CSV…"),
     "ui.filter": (
         "Filter: words to find, and/or a size like >500mb or <2gb",
         "Filtro: parole da cercare e/o una dimensione come >500mb o <2gb",

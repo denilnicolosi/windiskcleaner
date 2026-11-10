@@ -40,6 +40,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   Storage Sense), the Delivery Optimization cache and Windows' reserved storage.
 - Games tab (shown when Steam or Epic games are installed): size and last time played,
   uninstall through the launcher, open, compress.
+- CSV export (File menu and `--report csv`): every folder and tracked file with size,
+  file count and date, ready for Excel.
 - Treemap view in the Overview (button next to the path): every subfolder as a box sized
   by its space, with its own subfolders inside; click to enter, right-click for actions.
 

@@ -39,3 +39,22 @@ def test_damaged_history_lines_are_skipped(tmp_path, make):
     with open(history._file(), "a", encoding="utf-8") as f:
         f.write("{half a line")
     assert len(history.load()) == 1
+
+
+def test_csv_lists_folders_and_files(tmp_path, make):
+    import csv
+    import io
+
+    from diskdiet import report
+    from diskdiet.scanner import MIN_TRACKED_FILE
+
+    make("a/big.bin", MIN_TRACKED_FILE)
+    make("a/b/small.txt", 5)
+    text = report.to_csv(scan(str(tmp_path)))
+    assert text.startswith("\ufeff")
+    rows = list(csv.DictReader(io.StringIO(text.lstrip("\ufeff"))))
+    kinds = {(r["kind"], r["path"]) for r in rows}
+    assert ("folder", str(tmp_path / "a" / "b")) in kinds
+    assert ("file", str(tmp_path / "a" / "big.bin")) in kinds
+    root = next(r for r in rows if r["path"] == str(tmp_path))
+    assert int(root["bytes"]) == MIN_TRACKED_FILE + 5
