@@ -215,6 +215,10 @@ class RecPanel(QWidget):
         self.clean = QPushButton(tr("rec.clean"))
         self.clean.clicked.connect(self.clean_checked)
         self.clean.setVisible(categories is None)
+        self.all_safe = QPushButton(tr("rec.all_safe"))
+        self.all_safe.setToolTip(tr("rec.all_safe_tip"))
+        self.all_safe.clicked.connect(self.check_all_safe)
+        self.all_safe.setVisible(categories is None)
         self.review_button = QPushButton(tr("rec.review"))
         self.review_button.clicked.connect(self.review)
         self.open = QPushButton(tr("rec.open"))
@@ -222,7 +226,7 @@ class RecPanel(QWidget):
         self.tool = QPushButton(tr("rec.tool"))
         self.tool.clicked.connect(self.open_tool)
         buttons = QHBoxLayout()
-        for button in (self.clean, self.review_button, self.open, self.tool):
+        for button in (self.all_safe, self.clean, self.review_button, self.open, self.tool):
             buttons.addWidget(button)
         buttons.addStretch(1)
         self.commands = QHBoxLayout()  # one button per command of the selected item
@@ -390,6 +394,16 @@ class RecPanel(QWidget):
         return confirm(self, tr("rec.confirm_title"),
                        tr("rec.still_open", apps="\n".join(f"• {p}" for p in open_now)))
 
+    def check_all_safe(self) -> None:
+        """Tick every safe item, then ask as usual: the preview and confirmation stay."""
+        for g in range(self.tree.topLevelItemCount()):
+            group = self.tree.topLevelItem(g)
+            for i in range(group.childCount()):
+                item = group.child(i)
+                if item.flags() & Qt.ItemFlag.ItemIsUserCheckable and not item.isDisabled():
+                    item.setCheckState(0, CHECKED)
+        self.clean_checked()
+
     def clean_checked(self) -> None:
         items = self.checked()
         if not items:
@@ -412,12 +426,13 @@ class RecPanel(QWidget):
             return
 
         count = sum(len(targets) for _rec, targets in plan)
+        batch = journal.new_batch()  # one cleanup, undone in one click from the Log tab
 
         def job(progress, _cancelled):
             total, done = actions.Report(), 0
             for rec, targets in plan:
                 total.merge(actions.delete(
-                    targets, rec.paths, permanent=rec.permanent, source=rec.id,
+                    targets, rec.paths, permanent=rec.permanent, source=rec.id, batch=batch,
                     progress=lambda i, _n, path, done=done: progress((done + i, count), path),
                 ))
                 done += len(targets)
@@ -694,12 +709,14 @@ class JournalTab(QWidget):
         hint.setWordWrap(True)
         self.restore = QPushButton(tr("log.restore"))
         self.restore.clicked.connect(self.restore_selected)
+        undo = QPushButton(tr("log.undo_last"))
+        undo.clicked.connect(self.undo_last)
         open_bin = QPushButton(tr("bin.open"))
         open_bin.clicked.connect(lambda: actions.launch("shell:RecycleBinFolder"))
         empty = QPushButton(tr("bin.empty"))
         empty.clicked.connect(self.win.empty_bin)
         buttons = QHBoxLayout()
-        for button in (self.restore, open_bin, empty):
+        for button in (undo, self.restore, open_bin, empty):
             buttons.addWidget(button)
         buttons.addStretch(1)
         layout = QVBoxLayout(self)
@@ -731,6 +748,20 @@ class JournalTab(QWidget):
         entry = self.selected()
         recoverable = entry and entry["state"] == "removed" and entry["mode"] != journal.PERMANENT
         self.restore.setEnabled(bool(recoverable))
+
+    def undo_last(self) -> None:
+        if not confirm(self, tr("log.undo_last"), tr("log.undo_confirm")):
+            return
+        done, failed = actions.restore_last()
+        text = tr("log.undo_done", n=len(done))
+        if failed:
+            text += "\n\n" + tr("log.undo_failed", n=len(failed))
+        box = QMessageBox(QMessageBox.Icon.Information, tr("log.undo_last"), text,
+                          QMessageBox.StandardButton.Ok, self)
+        if failed:
+            box.setDetailedText("\n".join(f"{p} — {why}" for p, why in failed))
+        box.exec()
+        self.reload()
 
     def restore_selected(self) -> None:
         entry = self.selected()

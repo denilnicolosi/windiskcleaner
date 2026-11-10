@@ -258,3 +258,19 @@ def test_move_handles_destinations_past_260_characters(tmp_path, make):
     assert (report.moved, report.skipped) == (50, [])
     actions.restore(journal.load()[-1])
     assert open(deep, "rb").read() == b"v" * 50
+
+
+def test_undo_last_cleanup_restores_only_that_cleanup(tmp_path, make):
+    root = str(tmp_path / "cache")
+    first = make("cache/first.bin", 3)
+    trash = fake_bin(tmp_path)
+    actions.delete([first], [root], trash=trash)  # an earlier cleanup: stays in the bin
+    a, b, c = (make(f"cache/{n}.bin", 4) for n in "abc")
+    batch = journal.new_batch()
+    actions.delete([a], [root], trash=trash, batch=batch)
+    actions.delete([b], [root], trash=trash, batch=batch)
+    actions.delete([c], [root], permanent=True, batch=batch)  # cannot come back: not tried
+    done, failed = actions.restore_last()
+    assert sorted(done) == sorted([a, b]) and failed == []
+    assert os.path.exists(a) and os.path.exists(b) and not os.path.exists(first)
+    assert actions.restore_last() == ([], [])  # nothing left of that cleanup

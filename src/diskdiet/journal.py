@@ -19,9 +19,16 @@ def _file() -> str:
     return os.path.join(settings.data_dir(), "deleted.jsonl")
 
 
-def add(path: str, size: int, files: int, mode: str, location: str = "", source: str = "") -> dict:
+def new_batch() -> str:
+    """Id shared by every item of one cleanup, so the whole cleanup can be undone."""
+    return uuid.uuid4().hex
+
+
+def add(path: str, size: int, files: int, mode: str, location: str = "", source: str = "",
+        batch: str = "") -> dict:
     """Record one removed item. `location` is where it is now (Recycle Bin or archive)."""
     entry = {
+        "batch": batch,
         "id": uuid.uuid4().hex,
         "when": datetime.now().isoformat(timespec="seconds"),
         "path": path,

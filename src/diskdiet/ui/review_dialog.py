@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, advisor
+from diskdiet import actions, advisor, journal
 from diskdiet.strings import fmt_size, tr
 
 DELETE, MOVE, KEEP = "delete", "move", "keep"
@@ -161,17 +161,18 @@ class ReviewDialog(QDialog):
         # Catalogue folders: items must be inside them. Heuristic items: inside their own folder.
         roots = self.rec.paths if self.rec.expand else [os.path.dirname(p) for p in delete]
         rec_id, destination = self.rec.id, self.destination
+        batch = journal.new_batch()
 
         total = len(delete) + len(move)
 
         def job(progress, _cancelled):
             outcome = actions.delete(
-                delete, roots, source=rec_id,
+                delete, roots, source=rec_id, batch=batch,
                 progress=lambda i, _n, path: progress((i, total), path),
             )
             if move:
                 outcome.merge(actions.move(
-                    move, destination, source=rec_id,
+                    move, destination, source=rec_id, batch=batch,
                     progress=lambda i, _n, path: progress((len(delete) + i, total), path),
                 ))
             return outcome

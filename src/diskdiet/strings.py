@@ -103,6 +103,12 @@ S: dict[str, tuple[str, str]] = {
     "action.open": ("Review in Explorer", "Controlla in Esplora file"),
     "action.guide": ("Guided", "Guidata"),
     "rec.clean": ("Clean checked…", "Pulisci selezionati…"),
+    "rec.all_safe": ("Clean everything safe…", "Pulisci tutto il sicuro…"),
+    "rec.all_safe_tip": (
+        "Ticks every item marked safe and shows what will be removed before doing anything.",
+        "Seleziona tutte le voci sicure e mostra cosa verrà rimosso prima di fare qualsiasi "
+        "cosa.",
+    ),
     "rec.open": ("Open folder", "Apri cartella"),
     "rec.copy": ("Copy command", "Copia comando"),
     "rec.tool": ("Open Windows tool", "Apri strumento Windows"),
@@ -316,6 +322,16 @@ S.update({
         "spostati si possono rimettere dov'erano; i file temporanei sono eliminati per sempre.",
     ),
     "log.restore": ("Restore selected", "Ripristina selezionato"),
+    "log.undo_last": ("Undo last cleanup", "Annulla ultima pulizia"),
+    "log.undo_confirm": (
+        "Put back everything the last cleanup sent to the Recycle Bin or moved to another "
+        "drive? Items deleted for good cannot come back.",
+        "Rimettere a posto tutto ciò che l'ultima pulizia ha mandato nel Cestino o spostato "
+        "su un altro disco? Gli elementi eliminati definitivamente non possono tornare.",
+    ),
+    "log.undo_done": ("{n:,} items restored.", "{n:,} elementi ripristinati."),
+    "log.undo_failed": ("{n:,} could not be restored (details below).",
+                        "{n:,} non sono stati ripristinati (dettagli sotto)."),
     "log.restore_failed": ("Could not restore: {err}", "Impossibile ripristinare: {err}"),
     "log.restored": ("Restored:\n{path}", "Ripristinato:\n{path}"),
     "log.mode.trash": ("Recycle Bin", "Cestino"),

@@ -18,6 +18,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Warning before cleaning when the program that owns the files is still open.
 - Exclusions (Settings, or right-click a folder): DiskDiet never proposes, removes or moves
   what is listed there, nor anything inside it.
+- “Clean everything safe” ticks every safe item and opens the usual preview.
+- “Undo last cleanup” in the Log tab puts back everything of the latest cleanup.
 
 ### Changed
 

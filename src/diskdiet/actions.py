@@ -132,6 +132,7 @@ def delete(
     trash: Callable[[str], str | None] | None = None,
     source: str = "",
     progress: Callable[[int, int, str], None] | None = None,
+    batch: str = "",
 ) -> Report:
     """Remove `items`, each of which must lie inside one of `roots` (or be a root file).
 
@@ -139,6 +140,7 @@ def delete(
     Every removed item is written to the journal.
     """
     trash = trash or _qt_trash
+    batch = batch or journal.new_batch()
     allowed = [key(r) for r in roots]
     skip = excluded()
     report = Report()
@@ -180,7 +182,7 @@ def delete(
         else:
             report.trashed += before
         mode = journal.PERMANENT if permanent else journal.TRASH
-        journal.add(item, before, files, mode, location, source)
+        journal.add(item, before, files, mode, location, source, batch)
     return _logged(f"delete [{source}]", report)
 
 
@@ -206,10 +208,12 @@ def move(
     *,
     source: str = "",
     progress: Callable[[int, int, str], None] | None = None,
+    batch: str = "",
 ) -> Report:
     """Move `items` to another drive: copy, verify, and only then remove the original."""
     report = Report()
     skip = excluded()
+    batch = batch or journal.new_batch()
     items = list(items)
     for i, item in enumerate(items):
         if progress:
@@ -253,7 +257,7 @@ def move(
         report.freed += size
         report.moved += size
         report.deleted += 1
-        journal.add(item, size, files, journal.MOVED, target, source)
+        journal.add(item, size, files, journal.MOVED, target, source, batch)
     return _logged(f"move [{source}] to {dest_root}", report)
 
 
@@ -285,6 +289,29 @@ def restore(entry: dict) -> None:
         if name.upper().startswith("$R"):
             _unlink(os.path.join(folder, "$I" + name[2:]))
     journal.mark_restored(entry["id"])
+
+
+def restore_last() -> tuple[list[str], list[tuple[str, str]]]:
+    """Put back everything of the most recent cleanup that can come back.
+    Returns (restored paths, [(path, reason)]). Permanent deletions are not attempted."""
+    entries = journal.load()
+    batches = [e.get("batch") for e in entries if e.get("batch")]
+    if not batches:
+        return [], []
+    done, failed = [], []
+    for entry in entries:
+        if (entry.get("batch") != batches[-1] or entry["state"] != "removed"
+                or entry["mode"] == journal.PERMANENT):
+            continue
+        try:
+            restore(entry)
+            done.append(entry["path"])
+        except OSError as err:
+            failed.append((entry["path"], str(err)))
+    logger.info("restore last cleanup: %d restored, %d failed", len(done), len(failed))
+    for path, why in failed:
+        logger.warning("restore failed: %s (%s)", path, why)
+    return done, failed
 
 
 def recycle_bin_size() -> int:
