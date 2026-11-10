@@ -23,12 +23,13 @@ def main(argv: list[str] | None = None) -> int:
 
         return run()
 
-    from diskdiet import advisor, report, rules, system
+    from diskdiet import advisor, report, rules, settings, system
     from diskdiet.scanner import scan
 
     result = scan(args.root, watch_paths=rules.watch_paths(), watch_names=advisor.REGENERABLE)
     programs = system.installed_programs()
-    data = report.to_dict(result, advisor.build(result, programs=programs), programs)
+    recs = advisor.build(result, programs=programs, exclude=settings.load()["exclude"])
+    data = report.to_dict(result, recs, programs)
     text = json.dumps(data, indent=2) if args.report == "json" else report.to_html(data)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:

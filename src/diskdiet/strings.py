@@ -233,6 +233,7 @@ S.update({
     "col.state": ("State", "Stato"),
     "action.review": ("Guided check", "Controllo guidato"),
     "file.protected": ("Protected: DiskDiet never deletes this", "Protetta: DiskDiet non la elimina mai"),
+    "file.exclude": ("Never touch this (add to exclusions)", "Non toccare mai (aggiungi alle esclusioni)"),
     "file.trash_confirm": (
         "Move to the Recycle Bin?\n\n{path}\n{size}",
         "Spostare nel Cestino?\n\n{path}\n{size}",
@@ -349,6 +350,16 @@ S.update({
     "close.moved": ("{size} were moved to another drive.", "{size} sono stati spostati su un altro disco."),
     # settings
     "set.general": ("General", "Generale"),
+    "set.exclusions": ("Exclusions", "Esclusioni"),
+    "set.exclude_hint": (
+        "DiskDiet never proposes, removes, moves or compresses these folders and files, "
+        "nor anything inside them.",
+        "DiskDiet non propone, rimuove, sposta né comprime mai queste cartelle e questi file, "
+        "né ciò che contengono.",
+    ),
+    "set.exclude_folder": ("Add folder…", "Aggiungi cartella…"),
+    "set.exclude_file": ("Add file…", "Aggiungi file…"),
+    "set.exclude_remove": ("Remove", "Rimuovi"),
     "set.about": ("About", "Informazioni"),
     "set.theme": ("Theme", "Tema"),
     "set.theme.system": ("Same as Windows", "Come Windows"),

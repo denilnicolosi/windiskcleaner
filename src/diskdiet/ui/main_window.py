@@ -225,7 +225,7 @@ class MainWindow(QMainWindow):
     def start_scan(self, root: str | None) -> None:
         if not root:
             return
-        old_days = self.settings["old_days"]
+        old_days, exclude = self.settings["old_days"], self.settings["exclude"]
         volume = next((v for v in self.volumes if v.root.lower() == root.lower()), None)
         used = volume.total - volume.free if volume else 0  # unknown for a plain folder
         logger.info("scan start: %s", root)
@@ -237,7 +237,8 @@ class MainWindow(QMainWindow):
                 progress=lambda files, path, size: progress((files, size), path),
             )
             programs = system.installed_programs()
-            return result, programs, advisor.build(result, programs=programs, old_days=old_days)
+            recs = advisor.build(result, programs=programs, old_days=old_days, exclude=exclude)
+            return result, programs, recs
 
         def on_progress(pair, path):
             files, size = pair
@@ -322,8 +323,18 @@ class MainWindow(QMainWindow):
             return
         self.settings = settings.load()
         apply_theme(self.settings["theme"])
-        if self.settings["language"] != before["language"]:
-            self.reopen()
+        changed = ("language", "exclude", "old_days")
+        if any(self.settings[k] != before[k] for k in changed):
+            self.reopen()  # rebuilds the advice with the new values
+
+    def add_exclusion(self, path: str) -> None:
+        values = settings.load()
+        if path not in values["exclude"]:
+            values["exclude"].append(path)
+            settings.save(values)
+            logger.info("exclusion added: %s", path)
+        self.settings = values
+        self.reopen()  # the advice no longer lists it
 
     def reopen(self) -> None:
         """Rebuild the window in the new language, keeping the scan and the session totals."""
@@ -333,7 +344,8 @@ class MainWindow(QMainWindow):
         fresh.session = self.session
         if self.result:
             recs = advisor.build(
-                self.result, programs=self.programs, old_days=self.settings["old_days"]
+                self.result, programs=self.programs, old_days=self.settings["old_days"],
+                exclude=self.settings["exclude"],
             )
             fresh.on_scan_done((self.result, self.programs, recs))
         _WINDOWS.append(fresh)

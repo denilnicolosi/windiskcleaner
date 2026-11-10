@@ -11,6 +11,7 @@ DEFAULTS = {
     "check_updates": True,
     "old_days": 730,
     "dup_min_mb": 1,
+    "exclude": [],  # folders and files DiskDiet must never propose or remove
 }
 
 
@@ -35,6 +36,7 @@ def load() -> dict:
     for name, default in DEFAULTS.items():
         if type(stored.get(name)) is type(default):
             values[name] = stored[name]
+    values["exclude"] = [p for p in values["exclude"] if isinstance(p, str) and p]
     return values
 
 

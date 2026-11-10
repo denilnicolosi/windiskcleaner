@@ -163,6 +163,7 @@ class Overview(QWidget):
         if actions.is_protected(node.path):
             delete.setEnabled(False)
             delete.setText(tr("file.protected"))
+        menu.addAction(tr("file.exclude"), lambda: self.win.add_exclusion(node.path))
         menu.exec(global_pos)
 
     def delete(self, node) -> None:

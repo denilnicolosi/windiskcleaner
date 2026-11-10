@@ -253,14 +253,28 @@ def build(
     programs: Iterable = (),
     now: float | None = None,
     old_days: int = OLD_DAYS,
+    exclude: Iterable[str] = (),
 ) -> list[Recommendation]:
-    """All recommendations for a scan, biggest first."""
+    """All recommendations for a scan, biggest first. Nothing under `exclude` is proposed."""
     now = time.time() if now is None else now
     recs = [_from_rule(rule, result) for rule in rules]
     covered = [key(p) for r in recs if r for p in r.paths]
     recs += _archive(result, now, old_days)
     recs += [_idle_projects(result, now), _orphans(result, programs, covered)]
+    keys = [key(p) for p in exclude]
+    recs = [_without(r, keys, result) for r in recs if r]
     return sorted((r for r in recs if r), key=lambda r: -r.size)
+
+
+def _without(rec: Recommendation, keys: list[str], result: ScanResult) -> Recommendation | None:
+    """`rec` minus the paths the user excluded; None if nothing is left of it."""
+    kept = [p for p in rec.paths if not actions.excluded_hit(key(p), keys)]
+    if len(kept) == len(rec.paths):
+        return rec
+    if not kept:
+        return None
+    rec.paths, rec.size = kept, sum(measure(p, result) for p in kept)
+    return rec
 
 
 def review_items(rec: Recommendation, result: ScanResult | None = None) -> list[FileInfo]:

@@ -10,8 +10,11 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
+    QListWidget,
     QPushButton,
     QSpinBox,
     QTabWidget,
@@ -67,6 +70,27 @@ class SettingsDialog(QDialog):
         privacy.setWordWrap(True)
         form.addRow(privacy)
 
+        exclusions = QWidget()
+        ex_layout = QVBoxLayout(exclusions)
+        hint = QLabel(tr("set.exclude_hint"))
+        hint.setWordWrap(True)
+        self.exclude = QListWidget()
+        self.exclude.addItems(values["exclude"])
+        add_folder = QPushButton(tr("set.exclude_folder"))
+        add_folder.clicked.connect(self.add_folder)
+        add_file = QPushButton(tr("set.exclude_file"))
+        add_file.clicked.connect(self.add_file)
+        remove = QPushButton(tr("set.exclude_remove"))
+        remove.clicked.connect(lambda: [self.exclude.takeItem(self.exclude.row(i))
+                                        for i in self.exclude.selectedItems()])
+        row = QHBoxLayout()
+        for button in (add_folder, add_file, remove):
+            row.addWidget(button)
+        row.addStretch(1)
+        ex_layout.addWidget(hint)
+        ex_layout.addWidget(self.exclude)
+        ex_layout.addLayout(row)
+
         about = QWidget()
         about_layout = QVBoxLayout(about)
         logo = QLabel()
@@ -88,6 +112,7 @@ class SettingsDialog(QDialog):
 
         tabs = QTabWidget()
         tabs.addTab(general, tr("set.general"))
+        tabs.addTab(exclusions, tr("set.exclusions"))
         tabs.addTab(about, tr("set.about"))
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -102,6 +127,17 @@ class SettingsDialog(QDialog):
         self.update_status.setText(tr("upd.checking"))
         self.win.check_updates(report_to=self.update_status.setText)
 
+    def _add_exclusion(self, path: str) -> None:
+        path = os.path.normpath(path) if path else ""
+        if path and not self.exclude.findItems(path, Qt.MatchFlag.MatchFixedString):
+            self.exclude.addItem(path)
+
+    def add_folder(self) -> None:
+        self._add_exclusion(QFileDialog.getExistingDirectory(self, tr("set.exclude_folder")))
+
+    def add_file(self) -> None:
+        self._add_exclusion(QFileDialog.getOpenFileName(self, tr("set.exclude_file"))[0])
+
     def open_data(self) -> None:
         os.makedirs(settings.data_dir(), exist_ok=True)
         actions.open_in_explorer(settings.data_dir())
@@ -113,6 +149,7 @@ class SettingsDialog(QDialog):
             "old_days": self.old_days.value(),
             "dup_min_mb": self.dup_min.value(),
             "check_updates": self.check_updates.isChecked(),
+            "exclude": [self.exclude.item(i).text() for i in range(self.exclude.count())],
         }
 
     def accept(self) -> None:

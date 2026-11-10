@@ -9,7 +9,7 @@ import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-from diskdiet import journal
+from diskdiet import journal, settings
 from diskdiet.log import logger
 from diskdiet.scanner import key, scan, under
 
@@ -45,9 +45,23 @@ def _logged(what: str, report: Report) -> Report:
     return report
 
 
-def is_protected(path: str) -> bool:
-    """Hard-wired never-touch list. Checked again right before every deletion."""
+def excluded() -> list[str]:
+    """Keys of what the user asked DiskDiet never to touch (Settings → Exclusions)."""
+    return [key(p) for p in settings.load()["exclude"]]
+
+
+def excluded_hit(k: str, keys: Iterable[str]) -> bool:
+    """`k` is an excluded item, lies inside one, or contains one (removing it would take
+    the excluded item with it)."""
+    return any(k == e or under(k, e) or under(e, k) for e in keys)
+
+
+def is_protected(path: str, exclude: Iterable[str] | None = None) -> bool:
+    """Hard-wired never-touch list plus the user's exclusions. Checked again right before
+    every deletion. `exclude` (keys) saves reading the settings once per item."""
     k = key(path)
+    if excluded_hit(k, excluded() if exclude is None else exclude):
+        return True
     env = os.environ
     if os.path.splitdrive(k)[1] in ("", os.sep):
         return True  # a drive root
@@ -126,6 +140,7 @@ def delete(
     """
     trash = trash or _qt_trash
     allowed = [key(r) for r in roots]
+    skip = excluded()
     report = Report()
     items = list(items)
     for i, item in enumerate(items):
@@ -133,7 +148,10 @@ def delete(
             progress(i, len(items), item)
         k = key(item)
         inside = any(under(k, r) or (k == r and not os.path.isdir(item)) for r in allowed)
-        if not inside or is_protected(item):
+        if excluded_hit(k, skip):
+            report.skipped.append((item, "excluded in Settings"))
+            continue
+        if not inside or is_protected(item, skip):
             report.skipped.append((item, "outside the allowed location"))
             continue
         if _OWN_RUNTIME and (k == _OWN_RUNTIME or under(_OWN_RUNTIME, k)):
@@ -191,11 +209,15 @@ def move(
 ) -> Report:
     """Move `items` to another drive: copy, verify, and only then remove the original."""
     report = Report()
+    skip = excluded()
     items = list(items)
     for i, item in enumerate(items):
         if progress:
             progress(i, len(items), item)
-        if is_protected(item) or not os.path.lexists(item):
+        if excluded_hit(key(item), skip):
+            report.skipped.append((item, "excluded in Settings"))
+            continue
+        if is_protected(item, skip) or not os.path.lexists(item):
             report.skipped.append((item, "outside the allowed location"))
             continue
         size, files = _measure(item)

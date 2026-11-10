@@ -106,3 +106,25 @@ def test_protected_items_are_refused_even_inside_the_root(monkeypatch, tmp_path,
     monkeypatch.setenv("USERPROFILE", path)  # pretend this file is the profile itself
     report = actions.delete([path], [str(tmp_path / "profile")], permanent=True)
     assert report.deleted == 0 and os.path.exists(path)
+
+
+def test_user_exclusions_are_never_removed_nor_proposed(tmp_path, make, monkeypatch):
+    from diskdiet import advisor, rules, settings
+    from diskdiet.scanner import scan
+
+    keep = make("temp/keep/notes.txt", 5)
+    gone = make("temp/old.tmp", 5)
+    inner = make("temp/box/inner/keep.txt", 5)  # deleting "box" would take it along
+    values = settings.load()
+    values["exclude"] = [os.path.dirname(keep), os.path.dirname(inner)]
+    settings.save(values)
+    root = str(tmp_path / "temp")
+    report = actions.delete(actions.preview([root]), [root], permanent=True)
+    assert os.path.exists(keep) and os.path.exists(inner) and not os.path.exists(gone)
+    assert {why for _p, why in report.skipped} == {"excluded in Settings"}
+    assert actions.is_protected(keep)
+
+    monkeypatch.setenv("TEMP", root)
+    result = scan(str(tmp_path), watch_paths=rules.watch_paths())
+    recs = {r.id: r for r in advisor.build(result, exclude=[root])}
+    assert "user_temp" not in recs

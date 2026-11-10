@@ -16,6 +16,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Guidance for classic Teams leftovers, Python versions, Azure Functions Core Tools
   versions, Clipchamp, Dart/Flutter pub cache and the pnpm store.
 - Warning before cleaning when the program that owns the files is still open.
+- Exclusions (Settings, or right-click a folder): DiskDiet never proposes, removes or moves
+  what is listed there, nor anything inside it.
 
 ### Changed
 
@@ -25,6 +27,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 - Rule wildcards no longer follow junctions such as `Dati applicazioni` on Italian
   Windows, which would have counted folders twice.
+- Moving to another drive no longer fails when the archive path exceeds 260 characters.
 
 ## [0.1.0] - 2026-11-10
 
