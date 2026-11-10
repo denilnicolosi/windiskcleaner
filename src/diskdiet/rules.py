@@ -678,6 +678,8 @@ QUESTIONS: dict[str, Text] = {
                          "I tuoi progetti Functions usano ancora questa versione?"),
     "teams_classic": ("Classic Teams is retired. Remove this part of it?",
                       "Teams classico è ritirato. Rimuovere questa sua parte?"),
+    "leftovers": ("Left by the removed program. Delete it?",
+                  "Lasciata dal programma rimosso. Eliminarla?"),
     "appdata_orphans": ("Do you recognise the program this folder belongs to?",
                         "Riconosci il programma a cui appartiene questa cartella?"),
 }

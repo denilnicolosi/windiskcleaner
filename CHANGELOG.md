@@ -25,6 +25,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   the saving. Nothing is deleted; Decompress or the Log tab undoes it.
 - “What changed” tab: compares each scan with the previous scan of the same folder and
   lists the folders where the space went (or came back).
+- “Find leftovers” in the Programs tab: after an uninstall, looks in AppData, LocalLow and
+  ProgramData for folders the program left behind and opens the guided check. Folders
+  that also fit a program still installed are never proposed.
 
 ### Changed
 

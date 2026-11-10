@@ -28,6 +28,7 @@ class Program:
     size: int  # bytes, as declared by the installer; 0 when unknown
     installed: str  # YYYYMMDD or ""
     uninstall: str = ""  # the program's own uninstaller command line
+    location: str = ""  # InstallLocation, when the installer recorded it
 
 
 def is_admin() -> bool:
@@ -109,6 +110,7 @@ def installed_programs() -> list[Program]:
                             str(name), str(value(k, "Publisher", "")), size,
                             str(value(k, "InstallDate", "")),
                             str(value(k, "UninstallString", "")),
+                            str(value(k, "InstallLocation", "")).strip().strip('"'),
                         )
                 except OSError:
                     continue

@@ -356,6 +356,25 @@ S.update({
     "rev.empty": ("Nothing left to check here.", "Non c'è più nulla da controllare qui."),
     # programs
     "prog.uninstall": ("Uninstall…", "Disinstalla…"),
+    "prog.leftovers": ("Find leftovers…", "Cerca residui…"),
+    "prog.leftovers_tip": (
+        "After uninstalling, looks in AppData, LocalLow and ProgramData for folders the "
+        "program left behind.",
+        "Dopo la disinstallazione cerca in AppData, LocalLow e ProgramData le cartelle "
+        "lasciate dal programma.",
+    ),
+    "prog.after": (
+        "When the uninstaller of “{name}” has finished, press “Find leftovers” to look for "
+        "folders it left behind.",
+        "Quando la disinstallazione di “{name}” è finita, premi “Cerca residui” per trovare "
+        "le cartelle rimaste.",
+    ),
+    "prog.still_installed": (
+        "“{name}” is still installed: its folders are in use. Uninstall it first.",
+        "“{name}” è ancora installato: le sue cartelle sono in uso. Disinstallalo prima.",
+    ),
+    "prog.no_leftovers": ("No leftovers of “{name}” were found.",
+                          "Non sono stati trovati residui di “{name}”."),
     "prog.confirm": (
         "Start the uninstaller of “{name}”?\n\nIts own window will guide you.",
         "Avviare il programma di disinstallazione di “{name}”?\n\nLa sua finestra ti guiderà.",

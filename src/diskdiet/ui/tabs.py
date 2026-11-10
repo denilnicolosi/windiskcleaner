@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, journal, system, vhdx
+from diskdiet import actions, advisor, journal, system, vhdx
 from diskdiet.duplicates import find_duplicates
 from diskdiet.log import logger
 from diskdiet.rules import RESTORE_POINT, Action, Safety
@@ -658,8 +658,16 @@ class ProgramsTab(QWidget):
         self.uninstall.clicked.connect(self.uninstall_selected)
         apps = QPushButton(tr("prog.open"))
         apps.clicked.connect(lambda: actions.launch("ms-settings:appsfeatures"))
+        self.leftovers = QPushButton(tr("prog.leftovers"))
+        self.leftovers.setToolTip(tr("prog.leftovers_tip"))
+        self.leftovers.setEnabled(False)
+        self.leftovers.clicked.connect(self.find_leftovers)
+        self.table.itemSelectionChanged.connect(
+            lambda: self.leftovers.setEnabled(self.table.currentRow() >= 0)
+        )
         buttons = QHBoxLayout()
         buttons.addWidget(self.uninstall)
+        buttons.addWidget(self.leftovers)
         buttons.addWidget(apps)
         buttons.addStretch(1)
         layout = QVBoxLayout(self)
@@ -694,6 +702,36 @@ class ProgramsTab(QWidget):
             # Some uninstall commands are not directly startable: Windows' own list still is.
             QMessageBox.warning(self, tr("prog.uninstall"), tr("ui.failed", err=err))
             actions.launch("ms-settings:appsfeatures")
+            return
+        QMessageBox.information(self, tr("prog.uninstall"), tr("prog.after", name=program.name))
+
+    def find_leftovers(self) -> None:
+        row = self.table.currentRow()
+        if row < 0:
+            return
+        program = self.table.item(row, 0).data(ROLE)
+        exclude = self.win.settings["exclude"]
+
+        def job(_progress, _cancelled):
+            installed = system.installed_programs()  # fresh: the uninstaller just ran
+            if any(p.name == program.name for p in installed):
+                return None, installed
+            return advisor.leftovers(program, installed, exclude), installed
+
+        def done(out):
+            rec, installed = out
+            if rec is None and any(p.name == program.name for p in installed):
+                QMessageBox.information(self, tr("prog.leftovers"),
+                                        tr("prog.still_installed", name=program.name))
+                return
+            self.load(installed)
+            if rec is None:
+                QMessageBox.information(self, tr("prog.leftovers"),
+                                        tr("prog.no_leftovers", name=program.name))
+                return
+            ReviewDialog(self.win, rec, False).exec()
+
+        self.win.run(job, done)
 
 
 class JournalTab(QWidget):

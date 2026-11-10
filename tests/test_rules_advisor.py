@@ -198,3 +198,29 @@ def test_build_folders_need_their_project_file(tmp_path, make, monkeypatch):
     assert sorted(rec.paths) == sorted(
         str(p) for p in (code / "rust" / "target", code / "web" / ".next", code / "net" / "obj")
     )
+
+
+def test_leftovers_of_a_removed_program(tmp_path, make, monkeypatch):
+    tmp_path = tmp_path / "me" / "AppData"  # inside the (fake) profile, like the real ones
+    for var, rel in (("LOCALAPPDATA", "Local"), ("APPDATA", "Roaming"),
+                     ("PROGRAMDATA", "ProgramData")):
+        monkeypatch.setenv(var, str(tmp_path / rel))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path.parent))
+    make("me/AppData/Local/Postman/app-9.31.0/Postman.exe", 50)
+    make("me/AppData/Roaming/Postman/config.json", 5)
+    make("me/AppData/Roaming/PostgreSQL/pgpass.conf", 5)  # another program, still installed
+    make("me/AppData/Roaming/JetBrains/PyCharm2025.1/options.xml", 5)
+    make("me/AppData/Roaming/JetBrains/PyCharm2025.2/options.xml", 5)  # the version still installed
+    make("me/AppData/ProgramData/Unrelated/x", 5)
+    installed = [Program("PostgreSQL 16", "PostgreSQL", 0, ""),
+                 Program("PyCharm 2025.2", "JetBrains s.r.o.", 0, "")]
+    postman = Program("Postman x64 9.31.0", "Postman", 0, "", "",
+                      str(tmp_path / "Local" / "Postman"))
+    rec = advisor.leftovers(postman, installed)
+    assert sorted(rec.paths) == sorted([str(tmp_path / "Local" / "Postman"),
+                                        str(tmp_path / "Roaming" / "Postman")])
+    old = Program("PyCharm 2025.1", "JetBrains s.r.o.", 0, "")
+    rec = advisor.leftovers(old, installed)
+    assert rec.paths == [str(tmp_path / "Roaming" / "JetBrains" / "PyCharm2025.1")]
+    broad = Program("Tool", "Tool", 0, "", "", str(tmp_path / "Local"))  # bad InstallLocation
+    assert advisor.leftovers(broad, installed) is None

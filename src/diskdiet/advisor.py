@@ -276,6 +276,102 @@ def _orphans(result: ScanResult, programs: Iterable, covered: list[str]) -> Reco
     )
 
 
+# Words that say nothing about which program a folder belongs to.
+_FILLER = {"x64", "x86", "64bit", "32bit", "bit", "version", "for", "windows", "the", "and",
+           "edition", "update", "setup", "installer", "portable", "beta", "preview"}
+
+
+def _core(name: str) -> str:
+    """Program name without versions, architecture and filler: "Postman x64 9.31.0" -> postman."""
+    name = re.sub(r"\(.*?\)", " ", name.lower())
+    words = [w for w in re.split(r"[^a-z0-9]+", name) if w and w not in _FILLER
+             and not any(c.isdigit() for c in w)]
+    return "".join(words)
+
+
+def _belongs(folder: str, core: str) -> bool:
+    n = _norm(folder)
+    if len(n) < 4 or len(core) < 4:
+        return False
+    return n == core or core.startswith(n) and len(n) >= 5 or n.startswith(core)
+
+
+def leftovers(program, installed: Iterable, exclude: Iterable[str] = ()) -> Recommendation | None:
+    """Folders a removed program left in AppData, LocalLow and ProgramData (Revo-style).
+
+    Only call it once the program is gone from `installed`: before that the folders are its
+    live data. A folder that also fits a program still installed is never proposed.
+    """
+    core = _core(program.name)
+    others = [_core(p.name) for p in installed if p.name != program.name]
+    # Another version is still installed (PyCharm 2025.1 removed, 2025.2 kept): only
+    # folders carrying the removed version's own number qualify.
+    version = "".join(re.findall(r"\d+", program.name)) if core in others else ""
+    publisher = _norm(program.publisher.split()[0]) if program.publisher.split() else ""
+    profile = os.environ.get("USERPROFILE", "")
+    bases = [os.environ.get(v, "") for v in ("LOCALAPPDATA", "APPDATA", "PROGRAMDATA")]
+    bases += [os.path.join(profile, "AppData", "LocalLow")] if profile else []
+    bases = [b for b in bases if b and os.path.isdir(b)]
+    found: list[str] = []
+
+    # "Microsoft Teams classic" also matches a folder called "Teams".
+    cores = {core, core[len(publisher):]} if publisher and core.startswith(publisher) else {core}
+
+    def consider(path: str) -> None:
+        name = os.path.basename(path)
+        if not any(_belongs(name, c) for c in cores):
+            return
+        if any(_belongs(name, o) for o in others if o != core):
+            return
+        if core in others and (not version or "".join(re.findall(r"\d+", name)) != version):
+            return
+        found.append(path)
+
+    def folders(path: str) -> list[os.DirEntry]:
+        try:
+            with os.scandir(path) as entries:
+                return [e for e in entries if e.is_dir(follow_symlinks=False)
+                        and not e.is_symlink()]
+        except OSError:
+            return []
+
+    for base in bases:
+        for entry in folders(base):
+            if len(publisher) >= 4 and _norm(entry.name) == publisher != core:
+                # e.g. %APPDATA%\JetBrains\PyCharm2025.1: look one level down
+                for sub in folders(entry.path):
+                    consider(sub.path)
+                continue
+            if entry.name.lower() not in NOT_ORPHANS:
+                consider(entry.path)
+    location = os.path.normpath(program.location) if program.location else ""
+    # An InstallLocation that is a base folder (or holds one) would mean "everything".
+    broad = [key(b) for b in bases + [profile] if b]
+    if location and os.path.isdir(location) \
+            and any(_belongs(os.path.basename(location), c) for c in cores) \
+            and not any(key(location) == b or under(b, key(location)) for b in broad):
+        found.append(location)
+    keys = [key(p) for p in exclude]
+    found = sorted({p for p in found if not actions.is_protected(p, keys)})
+    if not found:
+        return None
+    sizes = {p: measure(p) for p in found}
+    return Recommendation(
+        "leftovers", "apps", Safety.CAUTION, Action.REVIEW,
+        pick(("Leftovers of {name}", "Residui di {name}")).format(name=program.name),
+        pick((
+            "Folders with this program's name, still there after its uninstaller ran. "
+            "They usually hold settings, caches and logs. Keep them if you plan to "
+            "reinstall and want your settings back.",
+            "Cartelle con il nome di questo programma, rimaste dopo la disinstallazione. Di "
+            "solito contengono impostazioni, cache e log. Tienile se pensi di reinstallarlo "
+            "e vuoi ritrovare le impostazioni.",
+        )),
+        sum(sizes.values()), sorted(found, key=lambda p: -sizes[p]),
+        question=pick(question("leftovers")),
+    )
+
+
 def build(
     result: ScanResult,
     *,
