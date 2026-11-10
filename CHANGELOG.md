@@ -42,6 +42,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   uninstall through the launcher, open, compress.
 - CSV export (File menu and `--report csv`): every folder and tracked file with size,
   file count and date, ready for Excel.
+- Import a winapp2.ini (Settings → Exclusions): its whole-folder rules become suggestions
+  for the guided check, never a one-click cleanup. DiskDiet does not download it.
 - Treemap view in the Overview (button next to the path): every subfolder as a box sized
   by its space, with its own subfolders inside; click to enter, right-click for actions.
 

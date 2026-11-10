@@ -442,6 +442,17 @@ def uninstall(command: str) -> None:
         launch("ms-settings:appsfeatures")
 
 
+def remove_own_file(name: str) -> None:
+    """Delete one of DiskDiet's own files in its data folder (e.g. the imported
+    winapp2.ini). Nothing outside that folder can be named."""
+    if os.path.basename(name) != name or name in ("", ".", ".."):
+        raise ValueError(f"not a plain file name: {name!r}")
+    path = os.path.join(settings.data_dir(), name)
+    if os.path.isfile(path):
+        os.remove(path)
+        logger.info("removed own file: %s", name)
+
+
 def uninstall_game(launcher: str, app_id: str) -> None:
     """Ask the game's own launcher to uninstall it; the launcher asks the user to confirm."""
     if launcher == "Steam" and app_id.isdigit():

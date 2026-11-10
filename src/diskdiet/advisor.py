@@ -9,7 +9,7 @@ import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from diskdiet import actions
+from diskdiet import actions, winapp2
 from diskdiet.rules import RULES, Action, Rule, Safety, question
 from diskdiet.scanner import FileInfo, ScanResult, key, scan, under
 from diskdiet.strings import pick
@@ -414,6 +414,37 @@ def _old_versions(result: ScanResult) -> Recommendation | None:
     )
 
 
+def _community(result: ScanResult, covered: list[str]) -> Recommendation | None:
+    """Folders from an imported winapp2.ini: suggestions to check one by one."""
+    root = key(result.root.path)
+    windir = key(os.environ.get("WINDIR", r"C:\Windows"))
+    found = []
+    for _name, folder in winapp2.load():
+        k = key(folder)
+        if not under(k, root) or under(k, windir) or actions.is_protected(folder, ()):
+            continue
+        if any(c == k or under(k, c) or under(c, k) for c in covered):
+            continue  # the catalogue already explains it, with a better text
+        found.append(folder)
+    sizes = {p: measure(p, result) for p in dict.fromkeys(found)}
+    found = sorted((p for p in sizes if sizes[p]), key=lambda p: -sizes[p])
+    if not found:
+        return None
+    return Recommendation(
+        "winapp2", "apps", Safety.CAUTION, Action.REVIEW,
+        pick(("Community cleaning rules (winapp2.ini)", "Regole della community (winapp2.ini)")),
+        pick((
+            "Folders that the winapp2.ini you imported describes as caches, logs or temporary "
+            "files. Those rules are written by volunteers and not checked by DiskDiet: look "
+            "at each folder before deleting it, and close its program first.",
+            "Cartelle che il winapp2.ini importato descrive come cache, log o file temporanei. "
+            "Quelle regole sono scritte da volontari e non sono verificate da DiskDiet: guarda "
+            "ogni cartella prima di eliminarla e chiudi prima il suo programma.",
+        )),
+        sum(sizes[p] for p in found), found, question=pick(question("winapp2")),
+    )
+
+
 # Words that say nothing about which program a folder belongs to.
 _FILLER = {"x64", "x86", "64bit", "32bit", "bit", "version", "for", "windows", "the", "and",
            "edition", "update", "setup", "installer", "portable", "beta", "preview"}
@@ -525,7 +556,7 @@ def build(
     covered = [key(p) for r in recs if r for p in r.paths]
     recs += _archive(result, now, old_days)
     recs += [_idle_projects(result, now), _orphans(result, programs, covered),
-             _app_caches(result, covered), _old_versions(result)]
+             _app_caches(result, covered), _old_versions(result), _community(result, covered)]
     keys = [key(p) for p in exclude]
     recs = [_without(r, keys, result) for r in recs if r]
     return sorted((r for r in recs if r), key=lambda r: -r.size)

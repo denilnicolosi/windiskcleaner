@@ -495,6 +495,21 @@ S.update({
     "set.exclude_folder": ("Add folder…", "Aggiungi cartella…"),
     "set.exclude_file": ("Add file…", "Aggiungi file…"),
     "set.exclude_remove": ("Remove", "Rimuovi"),
+    "set.winapp2_none": (
+        "Community rules: none. You can import a winapp2.ini (the rules file used by "
+        "BleachBit and CCleaner, downloaded by you): its folders become suggestions to "
+        "check one by one in the Advice tab after the next scan.",
+        "Regole della community: nessuna. Puoi importare un winapp2.ini (il file di regole "
+        "usato da BleachBit e CCleaner, scaricato da te): le sue cartelle diventano "
+        "suggerimenti da controllare uno per uno nella scheda Consigli dopo la prossima "
+        "scansione.",
+    ),
+    "set.winapp2": ("Community rules: {n:,} usable entries imported (winapp2.ini).",
+                    "Regole della community: {n:,} voci utilizzabili importate (winapp2.ini)."),
+    "set.winapp2_empty": ("That file holds no usable winapp2 entries.",
+                          "Quel file non contiene voci winapp2 utilizzabili."),
+    "set.winapp2_import": ("Import winapp2.ini…", "Importa winapp2.ini…"),
+    "set.winapp2_remove": ("Remove community rules", "Rimuovi regole della community"),
     "set.about": ("About", "Informazioni"),
     "set.theme": ("Theme", "Tema"),
     "set.theme.system": ("Same as Windows", "Come Windows"),

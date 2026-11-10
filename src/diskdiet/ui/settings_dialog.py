@@ -22,7 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import __version__, actions, settings, updates
+from diskdiet import __version__, actions, settings, updates, winapp2
+from diskdiet.log import logger
 from diskdiet.strings import tr
 from diskdiet.ui.icon import pie_pixmap
 
@@ -90,6 +91,19 @@ class SettingsDialog(QDialog):
         ex_layout.addWidget(hint)
         ex_layout.addWidget(self.exclude)
         ex_layout.addLayout(row)
+        self.community = QLabel()
+        self.community.setWordWrap(True)
+        load_rules = QPushButton(tr("set.winapp2_import"))
+        load_rules.clicked.connect(self.import_winapp2)
+        drop_rules = QPushButton(tr("set.winapp2_remove"))
+        drop_rules.clicked.connect(self.remove_winapp2)
+        rules_row = QHBoxLayout()
+        rules_row.addWidget(load_rules)
+        rules_row.addWidget(drop_rules)
+        rules_row.addStretch(1)
+        ex_layout.addWidget(self.community)
+        ex_layout.addLayout(rules_row)
+        self.show_winapp2()
 
         about = QWidget()
         about_layout = QVBoxLayout(about)
@@ -137,6 +151,42 @@ class SettingsDialog(QDialog):
 
     def add_file(self) -> None:
         self._add_exclusion(QFileDialog.getOpenFileName(self, tr("set.exclude_file"))[0])
+
+    def show_winapp2(self) -> None:
+        try:
+            with open(winapp2.path(), encoding="utf-8", errors="replace") as f:
+                count = len(winapp2.parse(f.read()))
+        except OSError:
+            count = 0
+        self.community.setText(tr("set.winapp2", n=count) if count else tr("set.winapp2_none"))
+
+    def import_winapp2(self) -> None:
+        source, _ = QFileDialog.getOpenFileName(self, tr("set.winapp2_import"), "",
+                                                "winapp2.ini (*.ini)")
+        if not source:
+            return
+        try:
+            with open(source, encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError as err:
+            self.community.setText(tr("ui.failed", err=err))
+            return
+        if not winapp2.parse(text):
+            self.community.setText(tr("set.winapp2_empty"))
+            return
+        os.makedirs(settings.data_dir(), exist_ok=True)
+        with open(winapp2.path(), "w", encoding="utf-8") as f:
+            f.write(text)
+        logger.info("winapp2.ini imported from %s", source)
+        self.show_winapp2()
+
+    def remove_winapp2(self) -> None:
+        try:
+            actions.remove_own_file(winapp2.FILE_NAME)  # DiskDiet's copy, not the user's
+        except OSError as err:
+            self.community.setText(tr("ui.failed", err=err))
+            return
+        self.show_winapp2()
 
     def open_data(self) -> None:
         os.makedirs(settings.data_dir(), exist_ok=True)

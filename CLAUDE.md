@@ -34,6 +34,7 @@ uv run python -m diskdiet --report json --root C:\ --out report.json   # headles
 | `src/diskdiet/compress.py` | NTFS compression: candidates, estimate, size on disk (read-only; `actions.compress` runs compact.exe). |
 | `src/diskdiet/system.py` | Drives, installed programs (read-only). |
 | `src/diskdiet/games.py` | Steam and Epic games with size and last played (read-only). |
+| `src/diskdiet/winapp2.py` | Reads a user-imported winapp2.ini; its folders are only guided-check suggestions. |
 | `src/diskdiet/report.py` | JSON / HTML export. |
 | `src/diskdiet/strings.py` | UI strings `(english, italian)`, `tr()`, `fmt_size()`. |
 | `src/diskdiet/ui/` | Qt: `main_window`, `tabs`, `more_tabs` (compress, what changed, file types, games), `pie`, `review_dialog` (guided check), `terminal` (runs commands), `settings_dialog`, `icon`, `widgets`. Thin: no decisions here. |

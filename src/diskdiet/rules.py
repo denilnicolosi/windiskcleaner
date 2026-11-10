@@ -81,11 +81,11 @@ class Rule:
             expanded = os.path.expandvars(pattern)
             if "%" in expanded:  # variable not defined here
                 continue
-            found.extend(p for p in glob.glob(expanded) if not _through_link(p, expanded))
+            found.extend(p for p in glob.glob(expanded) if not through_link(p, expanded))
         return found
 
 
-def _through_link(path: str, pattern: str) -> bool:
+def through_link(path: str, pattern: str) -> bool:
     """True when a wildcard of `pattern` matched a junction or symlink. The folder would be
     found twice: on Italian Windows `%LOCALAPPDATA%\\*` also matches the legacy junction
     `Dati applicazioni`, which points back at %LOCALAPPDATA% itself."""
@@ -764,6 +764,8 @@ QUESTIONS: dict[str, Text] = {
                          "I tuoi progetti Functions usano ancora questa versione?"),
     "teams_classic": ("Classic Teams is retired. Remove this part of it?",
                       "Teams classico è ritirato. Rimuovere questa sua parte?"),
+    "winapp2": ("The community rules call this a cache. Delete the folder?",
+                "Le regole della community la indicano come cache. Eliminare la cartella?"),
     "old_versions": ("A newer version is installed. Remove this old one?",
                      "È installata una versione più recente. Rimuovere questa vecchia?"),
     "app_caches": ("Remove this cache? It is rebuilt at the next start.",
