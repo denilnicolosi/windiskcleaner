@@ -29,6 +29,7 @@ from diskdiet import (
     __version__,
     actions,
     advisor,
+    history,
     report,
     rules,
     settings,
@@ -40,8 +41,8 @@ from diskdiet.log import logger
 from diskdiet.log import setup as setup_log
 from diskdiet.scanner import scan
 from diskdiet.strings import fmt_size, tr
-from diskdiet.ui.compress_tab import CompressTab
 from diskdiet.ui.icon import app_icon
+from diskdiet.ui.more_tabs import CompressTab, GrowthTab
 from diskdiet.ui.settings_dialog import SettingsDialog
 from diskdiet.ui.tabs import (
     Duplicates,
@@ -127,6 +128,7 @@ class MainWindow(QMainWindow):
         self.archive_hint = QLabel()
         self.dups = Duplicates(self)
         self.compress_tab = CompressTab(self)
+        self.growth_tab = GrowthTab(self)
         self.journal_tab = JournalTab(self)
 
         archive = QWidget()
@@ -136,7 +138,8 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         for name, widget in (
-            ("overview", self.overview), ("advice", self.advice), ("big", self.big),
+            ("overview", self.overview), ("growth", self.growth_tab), ("advice", self.advice),
+            ("big", self.big),
             ("old", self.old), ("programs", self.program_tab), ("system", self.system_tab),
             ("archive", archive), ("compress", self.compress_tab), ("dups", self.dups),
             ("log", self.journal_tab),
@@ -269,6 +272,11 @@ class MainWindow(QMainWindow):
         self.old.load([f for f in files if f.mtime < cutoff][:MAX_ROWS])
         self.program_tab.load(programs)
         self.compress_tab.load(result)
+        try:
+            before = history.previous(root.path)
+            self.growth_tab.load(before, history.save(result))
+        except OSError as err:  # a full or read-only data folder must not spoil the scan
+            logger.warning("scan history not saved: %s", err)
         best = self.archive_destination()
         free = next((v.free for v in self.volumes if v.root == best), 0)
         self.archive_hint.setText(

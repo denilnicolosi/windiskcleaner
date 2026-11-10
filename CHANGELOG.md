@@ -23,6 +23,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Compress tab: transparent NTFS compression (XPRESS / LZX, like `compact.exe`) of
   programs, SDKs and other folders that are read but rarely written, with an estimate of
   the saving. Nothing is deleted; Decompress or the Log tab undoes it.
+- “What changed” tab: compares each scan with the previous scan of the same folder and
+  lists the folders where the space went (or came back).
 
 ### Changed
 

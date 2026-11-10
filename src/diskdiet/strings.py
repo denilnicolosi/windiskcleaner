@@ -71,6 +71,22 @@ S: dict[str, tuple[str, str]] = {
     "tab.archive": ("Archive", "Archivio"),
     "tab.dups": ("Duplicates", "Duplicati"),
     "tab.compress": ("Compress", "Comprimi"),
+    "tab.growth": ("What changed", "Cosa è cambiato"),
+    "grow.none": (
+        "Nothing to compare yet: the next scan of this folder will show what grew or shrank "
+        "since this one.",
+        "Ancora niente da confrontare: la prossima scansione di questa cartella mostrerà cosa "
+        "è cresciuto o diminuito da questa.",
+    ),
+    "grow.summary": (
+        "Compared with the scan of {when}: {before} → {after} ({change}). Below, the folders "
+        "where the change happened. Double-click to open one.",
+        "Rispetto alla scansione del {when}: {before} → {after} ({change}). Sotto, le "
+        "cartelle dove è avvenuto il cambiamento. Doppio clic per aprirne una.",
+    ),
+    "grow.before": ("Before", "Prima"),
+    "grow.after": ("Now", "Adesso"),
+    "grow.change": ("Change", "Differenza"),
     "col.on_disk": ("On disk", "Su disco"),
     "col.estimate": ("Estimated saving", "Risparmio stimato"),
     "cmp.hint": (

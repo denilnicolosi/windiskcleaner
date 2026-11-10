@@ -1,4 +1,4 @@
-"""Compress tab: transparent NTFS compression of folders that are read, not written."""
+"""Compress tab (NTFS compression) and Growth tab (what changed since the last scan)."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, compress
+from diskdiet import actions, compress, history
 from diskdiet.strings import fmt_size, tr
 from diskdiet.ui.widgets import RIGHT, ROLE, SortItem, confirm, make_table
 
@@ -172,3 +172,47 @@ class CompressTab(QWidget):
 
         self.win.run(job, done)
 
+
+
+class GrowthTab(QWidget):
+    """What changed since the previous scan of the same folder (history.growth)."""
+
+    def __init__(self, win):
+        super().__init__()
+        self.win = win
+        self.summary = QLabel(tr("grow.none"))
+        self.summary.setWordWrap(True)
+        self.table = make_table([tr("col.path"), tr("grow.before"), tr("grow.after"),
+                                 tr("grow.change")])
+        self.table.cellDoubleClicked.connect(
+            lambda row, _c: actions.open_in_explorer(self.table.item(row, 0).text()))
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.summary)
+        layout.addWidget(self.table, 1)
+
+    def load(self, before: dict | None, after: dict) -> None:
+        self.table.setSortingEnabled(False)
+        self.table.setRowCount(0)
+        if not before:
+            self.summary.setText(tr("grow.none"))
+            return
+        delta = after["total"] - before["total"]
+        self.summary.setText(tr(
+            "grow.summary", when=before["when"].replace("T", " "),
+            before=fmt_size(before["total"]), after=fmt_size(after["total"]),
+            change=_signed(delta),
+        ))
+        rows = history.growth(before, after)
+        self.table.setRowCount(len(rows))
+        for i, (path, a, b) in enumerate(rows):
+            self.table.setItem(i, 0, QTableWidgetItem(path))
+            for col, value, text in ((1, a, fmt_size(a)), (2, b, fmt_size(b)),
+                                     (3, b - a, _signed(b - a))):
+                cell = SortItem(text, value)
+                cell.setTextAlignment(RIGHT)
+                self.table.setItem(i, col, cell)
+        self.table.setSortingEnabled(True)
+
+
+def _signed(delta: int) -> str:
+    return ("+" if delta >= 0 else "−") + fmt_size(abs(delta))

@@ -26,6 +26,7 @@ uv run python -m diskdiet --report json --root C:\ --out report.json   # headles
 | `src/diskdiet/advisor.py` | Scan + rules + heuristics -> `Recommendation` list. |
 | `src/diskdiet/actions.py` | **The only module that deletes or launches anything.** |
 | `src/diskdiet/journal.py` | Log of removed/moved items (`deleted.jsonl`). Records only. |
+| `src/diskdiet/history.py` | Summaries of past scans (`history.jsonl`) and what grew since the last one. Records only. |
 | `src/diskdiet/settings.py` | Preferences in `%LOCALAPPDATA%\DiskDiet\settings.json`. |
 | `src/diskdiet/updates.py` | Update check/download from GitHub Releases. **The only network code.** |
 | `src/diskdiet/duplicates.py` | Duplicate finder (size -> 64 KB hash -> full hash), thread pool. |
@@ -34,7 +35,7 @@ uv run python -m diskdiet --report json --root C:\ --out report.json   # headles
 | `src/diskdiet/system.py` | Drives, installed programs (read-only). |
 | `src/diskdiet/report.py` | JSON / HTML export. |
 | `src/diskdiet/strings.py` | UI strings `(english, italian)`, `tr()`, `fmt_size()`. |
-| `src/diskdiet/ui/` | Qt: `main_window`, `tabs`, `pie`, `review_dialog` (guided check), `terminal` (runs commands), `settings_dialog`, `icon`, `widgets`. Thin: no decisions here. |
+| `src/diskdiet/ui/` | Qt: `main_window`, `tabs`, `more_tabs` (compress, what changed), `pie`, `review_dialog` (guided check), `terminal` (runs commands), `settings_dialog`, `icon`, `widgets`. Thin: no decisions here. |
 
 More in `docs/ARCHITECTURE.md`. Adding a rule: `docs/RULES.md`. Releasing: `docs/RELEASING.md`.
 
@@ -90,6 +91,7 @@ Between sessions, look here before asking the user what went wrong:
 | `diskdiet.log` (+ `.1`, `.2`) | Start/exit, scans (size, time, unreadable items), every delete/move with totals, each skipped item and why, commands run with exit code and the tail of their output, update checks, tracebacks of failed jobs and crashes. |
 | `deleted.jsonl` | One JSON line per removed or moved item: original path, size, mode, where it is now, state. |
 | `settings.json` | Current preferences. |
+| `history.jsonl` | Folder sizes of the last scans of each root (for “What changed”). |
 
 ```
 Select-String -Path "$env:LOCALAPPDATA\DiskDiet\diskdiet.log" -Pattern 'ERROR|CRITICAL|WARNING' | Select-Object -Last 40

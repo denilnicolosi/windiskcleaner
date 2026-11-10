@@ -44,7 +44,7 @@ def test_window_shows_a_scan(app, tmp_path, make, monkeypatch):
     assert window.big.rowCount() == 2
     assert window.advice.tree.topLevelItemCount() >= 2
     assert window.system_tab.recs.tree.topLevelItemCount() == 1
-    assert window.tabs.count() == 10
+    assert window.tabs.count() == 11
 
     window.overview.enter(window.overview.row_nodes[0])  # no sub-folders: stays put
     assert len(window.overview.stack) == 1
