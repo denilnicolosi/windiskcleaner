@@ -227,3 +227,27 @@ def test_overview_rescan_updates_one_folder(app, tmp_path, make, monkeypatch):
     assert result.root.size == before + 1000
     assert node not in result.root.children  # replaced by the fresh measurement
     window.close()
+
+
+def test_squarify_fills_the_rectangle_in_proportion():
+    from diskdiet.ui.treemap import squarify
+
+    values = [60, 25, 10, 5, 0]
+    rects = squarify(values, (0, 0, 200, 100))
+    assert len(rects) == 5
+    for value, (_x, _y, w, h) in zip(values, rects, strict=True):
+        assert abs(w * h - value / 100 * 200 * 100) < 1e-6
+    for x, y, w, h in rects:
+        assert x >= 0 and y >= 0 and x + w <= 200 + 1e-9 and y + h <= 100 + 1e-9
+    assert squarify([], (0, 0, 10, 10)) == []
+
+
+def test_overview_treemap_toggle(app, tmp_path, make, monkeypatch):
+    window, _result, _recs = scanned_window(tmp_path, make, monkeypatch)
+    overview = window.overview
+    assert overview.box_nodes and len(overview.treemap.items) == len(overview.box_nodes)
+    overview.toggle_view()
+    assert overview.charts.currentWidget() is overview.treemap
+    overview.treemap.resize(600, 400)
+    overview.treemap.grab()  # paints without errors
+    window.close()

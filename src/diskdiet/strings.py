@@ -88,6 +88,8 @@ S: dict[str, tuple[str, str]] = {
     "kind.file.data": ("Databases, models and data", "Database, modelli e dati"),
     "kind.file.code": ("Source code", "Codice sorgente"),
     "kind.file.other": ("Other", "Altro"),
+    "ui.treemap": ("Treemap view", "Vista a riquadri"),
+    "ui.pie": ("Pie view", "Vista a torta"),
     "ui.filter": (
         "Filter: words to find, and/or a size like >500mb or <2gb",
         "Filtro: parole da cercare e/o una dimensione come >500mb o <2gb",

@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSplitter,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QTreeWidget,
@@ -40,6 +41,7 @@ from diskdiet.strings import fmt_size, pick, tr
 from diskdiet.ui.pie import PieWidget
 from diskdiet.ui.review_dialog import ReviewDialog
 from diskdiet.ui.terminal import Terminal, decode
+from diskdiet.ui.treemap import TreemapWidget
 from diskdiet.ui.widgets import (
     GREY_FREE,
     GREY_OTHER,
@@ -74,6 +76,14 @@ class Overview(QWidget):
         self.pie = PieWidget()
         self.pie.clicked.connect(lambda i: self.enter(self.slice_nodes[i]))
         self.pie.context.connect(lambda i, pos: self.menu(self.slice_nodes[i], pos))
+        self.treemap = TreemapWidget()
+        self.treemap.clicked.connect(lambda i: self.enter(self.box_nodes[i]))
+        self.treemap.context.connect(lambda i, pos: self.menu(self.box_nodes[i], pos))
+        self.charts = QStackedWidget()
+        self.charts.addWidget(self.pie)
+        self.charts.addWidget(self.treemap)
+        self.view = QPushButton(tr("ui.treemap"))
+        self.view.clicked.connect(self.toggle_view)
         self.table = make_table(
             [tr("col.name"), tr("col.size"), tr("col.share"), tr("col.files")]
         )
@@ -88,8 +98,9 @@ class Overview(QWidget):
         top = QHBoxLayout()
         top.addWidget(self.up)
         top.addWidget(self.crumb, 1)
+        top.addWidget(self.view)
         split = QSplitter()
-        split.addWidget(self.pie)
+        split.addWidget(self.charts)
         split.addWidget(self.table)
         split.setStretchFactor(0, 1)
         split.setStretchFactor(1, 1)
@@ -97,11 +108,16 @@ class Overview(QWidget):
         layout = QVBoxLayout(self)
         layout.addLayout(top)
         layout.addWidget(split, 1)
-        self.slice_nodes, self.row_nodes = [], []
+        self.slice_nodes, self.row_nodes, self.box_nodes = [], [], []
 
     def load(self, root, volume) -> None:
         self.stack, self.volume = [root], volume
         self.refresh()
+
+    def toggle_view(self) -> None:
+        treemap = self.charts.currentWidget() is self.pie
+        self.charts.setCurrentWidget(self.treemap if treemap else self.pie)
+        self.view.setText(tr("ui.pie") if treemap else tr("ui.treemap"))
 
     def enter(self, node) -> None:
         if node is not None and node.children:
@@ -133,6 +149,14 @@ class Overview(QWidget):
             shown.append((tr("ui.free"), self.volume.free, None, None, GREY_FREE))
         self.pie.set_slices([(r[0], r[1], r[4]) for r in shown])
         self.slice_nodes = [r[3] for r in shown]
+        # The treemap shows every child (and its children), not just the top ten.
+        boxes = [r for r in rows if r[1] > 0]
+        self.treemap.set_items([
+            (name, size, PALETTE[i % len(PALETTE)] if child else GREY_OTHER,
+             [g.size for g in child.children if g.size > 0] if child else [])
+            for i, (name, size, _files, child, _c) in enumerate(boxes)
+        ])
+        self.box_nodes = [r[3] for r in boxes]
         # The table lists every child: the slices that were merged into "other" appear singly.
         listed = [r for r in shown if r[4] != GREY_OTHER] + rest
         listed.sort(key=lambda r: -r[1])
