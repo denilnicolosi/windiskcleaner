@@ -36,6 +36,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   recognised by their folder layout; only caches, never the apps' own data.
 - Old versions that self-updating programs keep beside the new one (Squirrel `app-*`
   folders, past JetBrains IDE versions); the newest is never proposed.
+- Guidance for Telegram and WhatsApp media, OneDrive files kept on this PC (free up space,
+  Storage Sense), the Delivery Optimization cache and Windows' reserved storage.
 - Treemap view in the Overview (button next to the path): every subfolder as a box sized
   by its space, with its own subfolders inside; click to enter, right-click for actions.
 

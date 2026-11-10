@@ -547,7 +547,93 @@ RULES: tuple[Rule, ...] = (
         ),
         tool="ms-settings:appsfeatures",
     ),
+    Rule(
+        "telegram_cache", "apps",
+        (rf"{R}\Telegram Desktop\tdata\user_data", rf"{R}\Telegram Desktop\tdata\user_data#*"),
+        Safety.CAUTION, Action.GUIDE,
+        ("Telegram media cache", "Cache dei media di Telegram"),
+        (
+            "Photos, videos and files Telegram downloaded while you scrolled. Clear it inside "
+            "Telegram: Settings → Advanced → Manage local storage, where you can also cap its "
+            "size. Deleting the folder by hand while Telegram runs can damage it.",
+            "Foto, video e file scaricati da Telegram mentre scorri le chat. Svuotala da "
+            "Telegram: Impostazioni → Avanzate → Gestisci memoria locale, dove puoi anche "
+            "limitarne la dimensione. Eliminare la cartella a mano con Telegram aperto può "
+            "danneggiarla.",
+        ),
+        tool=rf"{R}\Telegram Desktop\Telegram.exe",
+    ),
+    Rule(
+        "whatsapp_storage", "apps",
+        (rf"{L}\Packages\5319275A.WhatsAppDesktop_*\LocalCache",
+         rf"{L}\Packages\5319275A.WhatsAppDesktop_*\LocalState\shared\transfers"),
+        Safety.CAUTION, Action.GUIDE,
+        ("WhatsApp media", "Media di WhatsApp"),
+        (
+            "Media and cache of WhatsApp Desktop. Free space inside WhatsApp: Settings → "
+            "Storage, which lists the biggest chats and files. Deleting by hand can break "
+            "the app.",
+            "Media e cache di WhatsApp Desktop. Libera spazio da WhatsApp: Impostazioni → "
+            "Spazio di archiviazione, che elenca le chat e i file più grandi. Eliminare a mano "
+            "può rompere l'app.",
+        ),
+        tool="whatsapp:",
+    ),
+    Rule(
+        "onedrive_local", "apps", (rf"{U}\OneDrive", rf"{U}\OneDrive - *"),
+        Safety.CAUTION, Action.GUIDE,
+        ("OneDrive files kept on this PC", "File di OneDrive tenuti su questo PC"),
+        (
+            "Files that are in OneDrive and also stored on this disk. Right-click a folder → "
+            "“Free up space” keeps it in the cloud only (it downloads again when opened). "
+            "Storage Sense can do this by itself for files not opened for some days.",
+            "File che sono in OneDrive e anche salvati su questo disco. Tasto destro su una "
+            "cartella → “Libera spazio” li tiene solo nel cloud (si riscaricano quando li "
+            "apri). Sensore memoria può farlo da solo per i file non aperti da alcuni giorni.",
+        ),
+        tool="ms-settings:storagesense",
+    ),
     # ---- Windows ---------------------------------------------------------------------
+    Rule(
+        "delivery_optimization", "system",
+        (rf"{W}\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows"
+         r"\DeliveryOptimization\Cache",),
+        Safety.SYSTEM, Action.GUIDE,
+        ("Delivery Optimization cache", "Cache di Ottimizzazione recapito"),
+        (
+            "Pieces of Windows and Store updates kept to share with other PCs. Windows trims "
+            "it by itself; the command below empties it now.",
+            "Parti di aggiornamenti di Windows e dello Store tenute per condividerle con altri "
+            "PC. Windows la riduce da solo; il comando qui sotto la svuota subito.",
+        ),
+        commands=(
+            Command(("Empty the cache", "Svuota la cache"),
+                    ("powershell", "-NoProfile", "-Command",
+                     "Delete-DeliveryOptimizationCache -Force"), admin=True, changes=True),
+        ),
+        tool="ms-settings:delivery-optimization",
+    ),
+    Rule(
+        "reserved_storage", "system", (), Safety.SYSTEM, Action.GUIDE,
+        ("Reserved storage", "Spazio di archiviazione riservato"),
+        (
+            "Windows keeps several GB aside so that updates always have room. Turning it off "
+            "frees that space, but an update may then fail on a full disk.",
+            "Windows tiene da parte alcuni GB perché gli aggiornamenti abbiano sempre spazio. "
+            "Disattivarlo libera quello spazio, ma un aggiornamento potrebbe poi fallire con "
+            "il disco pieno.",
+        ),
+        commands=(
+            Command(("Show its state", "Mostra lo stato"),
+                    ("DISM.exe", "/Online", "/Get-ReservedStorageState"), admin=True),
+            Command(("Turn it off", "Disattivalo"),
+                    ("DISM.exe", "/Online", "/Set-ReservedStorageState", "/State:Disabled"),
+                    admin=True, changes=True),
+            Command(("Turn it back on", "Riattivalo"),
+                    ("DISM.exe", "/Online", "/Set-ReservedStorageState", "/State:Enabled"),
+                    admin=True, changes=True),
+        ),
+    ),
     Rule(
         "hibernation", "system", (r"%SystemDrive%\hiberfil.sys",), Safety.SYSTEM, Action.GUIDE,
         ("Hibernation file (hiberfil.sys)", "File di ibernazione (hiberfil.sys)"),

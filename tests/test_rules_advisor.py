@@ -122,6 +122,9 @@ TEAMS = "Local/Packages/MSTeams_8wekyb3d8bbwe/LocalCache/Microsoft/MSTeams"
     ("pnpm_store", ["Local/pnpm/store/v3/a"]),
     ("python_versions", ["Local/Programs/Python/Python39/python.exe"]),
     ("azure_func_tools", ["Local/AzureFunctionsTools/Releases/4.0.0/func.exe"]),
+    ("telegram_cache", ["Roaming/Telegram Desktop/tdata/user_data/cache/0/a",
+                        "Roaming/Telegram Desktop/tdata/user_data#2/cache/0/b"]),
+    ("whatsapp_storage", ["Local/Packages/5319275A.WhatsAppDesktop_cv1g1gvanyjgm/LocalCache/a"]),
 ])
 def test_appdata_rules(rule_id, files, tmp_path, make, monkeypatch):
     profile = tmp_path / "me"
@@ -261,3 +264,16 @@ def test_old_versions_keep_the_newest(tmp_path, make, monkeypatch):
         str(tmp_path / "Local" / "Gemini" / "app-1.16.0"),
         str(tmp_path / "Roaming" / "JetBrains" / "PyCharm2025.1"),
     ])
+
+
+def test_onedrive_and_windows_guidance(tmp_path, make, monkeypatch):
+    monkeypatch.setenv("USERPROFILE", str(tmp_path / "me"))
+    monkeypatch.setenv("WINDIR", str(tmp_path / "Windows"))
+    make("me/OneDrive/doc.pdf", 100)
+    make("me/OneDrive - Uni/thesis.docx", 50)
+    make("Windows/ServiceProfiles/NetworkService/AppData/Local/Microsoft/Windows/"
+         "DeliveryOptimization/Cache/piece", 70)
+    recs = {r.id: r for r in advisor.build(scan(str(tmp_path), watch_paths=rules.watch_paths()))}
+    assert recs["onedrive_local"].size == 150 and recs["onedrive_local"].action is Action.GUIDE
+    assert recs["delivery_optimization"].size == 70
+    assert "reserved_storage" in recs  # guidance only: always offered
