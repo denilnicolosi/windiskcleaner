@@ -30,6 +30,7 @@ uv run python -m diskdiet --report json --root C:\ --out report.json   # headles
 | `src/diskdiet/updates.py` | Update check/download from GitHub Releases. **The only network code.** |
 | `src/diskdiet/duplicates.py` | Duplicate finder (size -> 64 KB hash -> full hash), thread pool. |
 | `src/diskdiet/vhdx.py` | Docker/WSL virtual disk compaction; the only elevation (UAC). |
+| `src/diskdiet/compress.py` | NTFS compression: candidates, estimate, size on disk (read-only; `actions.compress` runs compact.exe). |
 | `src/diskdiet/system.py` | Drives, installed programs (read-only). |
 | `src/diskdiet/report.py` | JSON / HTML export. |
 | `src/diskdiet/strings.py` | UI strings `(english, italian)`, `tr()`, `fmt_size()`. |
@@ -73,7 +74,7 @@ More in `docs/ARCHITECTURE.md`. Adding a rule: `docs/RULES.md`. Releasing: `docs
 ## Working on this repo — safety for the agent itself
 
 - **Never run a real cleanup on the developer's machine** (delete, move, Recycle Bin,
-  emptying the bin, vhdx compaction, cache purge, uninstall, `changes=True` commands,
+  emptying the bin, vhdx compaction, NTFS compression, cache purge, uninstall, `changes=True` commands,
   elevated restart, exe self-update) to "verify" a change, unless the user explicitly
   confirms that specific action in the conversation. Test destructive code on `tmp_path`
   only. One test sends a tiny file of its own to the real Recycle Bin and restores it.

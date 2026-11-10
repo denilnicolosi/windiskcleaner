@@ -40,6 +40,7 @@ from diskdiet.log import logger
 from diskdiet.log import setup as setup_log
 from diskdiet.scanner import scan
 from diskdiet.strings import fmt_size, tr
+from diskdiet.ui.compress_tab import CompressTab
 from diskdiet.ui.icon import app_icon
 from diskdiet.ui.settings_dialog import SettingsDialog
 from diskdiet.ui.tabs import (
@@ -125,6 +126,7 @@ class MainWindow(QMainWindow):
         self.archive = RecPanel(self, {"archive"})
         self.archive_hint = QLabel()
         self.dups = Duplicates(self)
+        self.compress_tab = CompressTab(self)
         self.journal_tab = JournalTab(self)
 
         archive = QWidget()
@@ -136,7 +138,8 @@ class MainWindow(QMainWindow):
         for name, widget in (
             ("overview", self.overview), ("advice", self.advice), ("big", self.big),
             ("old", self.old), ("programs", self.program_tab), ("system", self.system_tab),
-            ("archive", archive), ("dups", self.dups), ("log", self.journal_tab),
+            ("archive", archive), ("compress", self.compress_tab), ("dups", self.dups),
+            ("log", self.journal_tab),
         ):
             self.tabs.addTab(widget, tr(f"tab.{name}"))
 
@@ -265,6 +268,7 @@ class MainWindow(QMainWindow):
         self.big.load(files[:MAX_ROWS])
         self.old.load([f for f in files if f.mtime < cutoff][:MAX_ROWS])
         self.program_tab.load(programs)
+        self.compress_tab.load(result)
         best = self.archive_destination()
         free = next((v.free for v in self.volumes if v.root == best), 0)
         self.archive_hint.setText(

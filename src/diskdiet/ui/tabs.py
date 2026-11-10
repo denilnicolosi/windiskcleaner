@@ -163,6 +163,7 @@ class Overview(QWidget):
         if actions.is_protected(node.path):
             delete.setEnabled(False)
             delete.setText(tr("file.protected"))
+        menu.addAction(tr("file.compress"), lambda: self.win.compress_tab.add(node.path))
         menu.addAction(tr("file.exclude"), lambda: self.win.add_exclusion(node.path))
         menu.exec(global_pos)
 
@@ -752,25 +753,39 @@ class JournalTab(QWidget):
     def undo_last(self) -> None:
         if not confirm(self, tr("log.undo_last"), tr("log.undo_confirm")):
             return
-        done, failed = actions.restore_last()
-        text = tr("log.undo_done", n=len(done))
-        if failed:
-            text += "\n\n" + tr("log.undo_failed", n=len(failed))
-        box = QMessageBox(QMessageBox.Icon.Information, tr("log.undo_last"), text,
-                          QMessageBox.StandardButton.Ok, self)
-        if failed:
-            box.setDetailedText("\n".join(f"{p} — {why}" for p, why in failed))
-        box.exec()
-        self.reload()
+
+        def finished(out):
+            done, failed = out
+            text = tr("log.undo_done", n=len(done))
+            if failed:
+                text += "\n\n" + tr("log.undo_failed", n=len(failed))
+            box = QMessageBox(QMessageBox.Icon.Information, tr("log.undo_last"), text,
+                              QMessageBox.StandardButton.Ok, self)
+            if failed:
+                box.setDetailedText("\n".join(f"{p} — {why}" for p, why in failed))
+            box.exec()
+            self.reload()
+
+        self.win.run(lambda _p, _c: actions.restore_last(), finished)
 
     def restore_selected(self) -> None:
         entry = self.selected()
         if not entry:
             return
-        try:
-            actions.restore(entry)
-        except OSError as err:
-            QMessageBox.warning(self, tr("log.restore"), tr("log.restore_failed", err=err))
-        else:
-            QMessageBox.information(self, tr("log.restore"), tr("log.restored", path=entry["path"]))
-        self.reload()
+
+        def job(_progress, _cancelled):  # decompressing a folder can take minutes
+            try:
+                actions.restore(entry)
+            except OSError as err:
+                return err
+            return None
+
+        def done(err):
+            if err:
+                QMessageBox.warning(self, tr("log.restore"), tr("log.restore_failed", err=err))
+            else:
+                QMessageBox.information(self, tr("log.restore"),
+                                        tr("log.restored", path=entry["path"]))
+            self.reload()
+
+        self.win.run(job, done)

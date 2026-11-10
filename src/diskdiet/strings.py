@@ -70,6 +70,47 @@ S: dict[str, tuple[str, str]] = {
     "tab.system": ("System", "Sistema"),
     "tab.archive": ("Archive", "Archivio"),
     "tab.dups": ("Duplicates", "Duplicati"),
+    "tab.compress": ("Compress", "Comprimi"),
+    "col.on_disk": ("On disk", "Su disco"),
+    "col.estimate": ("Estimated saving", "Risparmio stimato"),
+    "cmp.hint": (
+        "Windows can store folders compressed and open them as usual (NTFS compression, the "
+        "same as “compact.exe”). Nothing is deleted. Best for programs, SDKs and games: "
+        "files that are read a lot and rarely changed. Files a program rewrites go back to "
+        "normal size. Undo with Decompress or from the Deleted files tab. Program Files "
+        "needs DiskDiet started as administrator.",
+        "Windows può tenere le cartelle compresse e aprirle come sempre (compressione NTFS, "
+        "la stessa di “compact.exe”). Non si elimina niente. Ideale per programmi, SDK e "
+        "giochi: file letti spesso e cambiati di rado. I file che un programma riscrive "
+        "tornano a dimensione normale. Si annulla con Decomprimi o dalla scheda File "
+        "eliminati. Programmi (Program Files) richiede DiskDiet avviato come amministratore.",
+    ),
+    "cmp.algo": ("Method", "Metodo"),
+    "cmp.algo.XPRESS4K": ("XPRESS 4K (fastest)", "XPRESS 4K (più veloce)"),
+    "cmp.algo.XPRESS8K": ("XPRESS 8K (balanced)", "XPRESS 8K (bilanciato)"),
+    "cmp.algo.XPRESS16K": ("XPRESS 16K", "XPRESS 16K"),
+    "cmp.algo.LZX": ("LZX (smallest, for rarely used folders)",
+                     "LZX (più compatto, per cartelle usate di rado)"),
+    "cmp.add": ("Add folder…", "Aggiungi cartella…"),
+    "cmp.estimate": ("Estimate", "Stima"),
+    "cmp.compress": ("Compress…", "Comprimi…"),
+    "cmp.uncompress": ("Decompress…", "Decomprimi…"),
+    "cmp.estimated": ("about {size} ({pct:.0%})", "circa {size} ({pct:.0%})"),
+    "cmp.confirm": (
+        "Compress this folder with {algo}?\n\n{path}\n\nNothing is deleted. Close programs "
+        "that use it first. It can take several minutes.",
+        "Comprimere questa cartella con {algo}?\n\n{path}\n\nNon si elimina niente. Chiudi "
+        "prima i programmi che la usano. Può richiedere diversi minuti.",
+    ),
+    "cmp.un_confirm": (
+        "Decompress this folder? It will take its full size again.\n\n{path}",
+        "Decomprimere questa cartella? Tornerà a occupare tutto il suo spazio.\n\n{path}",
+    ),
+    "cmp.done": ("Saved {size} on disk.", "Risparmiati {size} su disco."),
+    "cmp.undone": ("Decompressed: {size} more on disk.",
+                   "Decompressa: {size} in più su disco."),
+    "file.compress": ("Compress (NTFS)…", "Comprimi (NTFS)…"),
+    "log.mode.compressed": ("Compressed in place", "Compresso sul posto"),
     # overview
     "ui.up": ("⬆ Up", "⬆ Su"),
     "ui.files_here": ("(files in this folder)", "(file in questa cartella)"),

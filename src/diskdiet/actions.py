@@ -9,6 +9,7 @@ import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
+from diskdiet import compress as wof
 from diskdiet import journal, settings
 from diskdiet.log import logger
 from diskdiet.scanner import key, scan, under
@@ -25,6 +26,7 @@ class Report:
     trashed: int = 0  # bytes now in the Recycle Bin: not free until it is emptied
     permanent: int = 0
     moved: int = 0  # bytes now on another drive
+    compressed: int = 0  # bytes saved by NTFS compression (files stay in place)
     skipped: list[tuple[str, str]] = field(default_factory=list)  # (path, reason)
 
     def merge(self, other: Report) -> None:
@@ -33,6 +35,7 @@ class Report:
         self.trashed += other.trashed
         self.permanent += other.permanent
         self.moved += other.moved
+        self.compressed += other.compressed
         self.skipped += other.skipped
 
 
@@ -268,11 +271,80 @@ def _unlink(path: str) -> None:
         pass
 
 
+def _compact(folder: str, switches: list[str]) -> subprocess.CompletedProcess:
+    # Run inside the folder with "*": no path on the command line, so nothing to quote.
+    return subprocess.run(
+        ["compact.exe", *switches, "/S", "/I", "/Q", "*"], cwd=folder, capture_output=True,
+        text=True, errors="replace", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
+def _compress_refusal(path: str, skip: Iterable[str]) -> str:
+    k = key(path)
+    if not os.path.isdir(path) or os.path.islink(path):
+        return "not a folder"
+    if excluded_hit(k, skip):
+        return "excluded in Settings"
+    windir = key(os.environ.get("WINDIR", r"C:\Windows"))
+    if os.path.splitdrive(k)[1] in ("", os.sep) or k == windir or under(k, windir):
+        return "Windows and drive roots are never compressed here"
+    return ""
+
+
+def compress(path: str, algorithm: str = wof.DEFAULT, *, source: str = "",
+             batch: str = "") -> Report:
+    """Compress a folder in place with Windows' compact.exe. Nothing is removed; undone
+    by `uncompress` (or Restore in the Log tab). Slow on big folders: run it in a worker."""
+    if algorithm not in wof.ALGORITHMS:
+        raise ValueError(f"unknown algorithm: {algorithm!r}")
+    report = Report()
+    reason = _compress_refusal(path, excluded())
+    if reason:
+        report.skipped.append((path, reason))
+        return _logged(f"compress [{source}]", report)
+    _logical, before, files = wof.on_disk(path)
+    try:
+        done = _compact(path, ["/C", f"/EXE:{algorithm}"])
+    except OSError as err:
+        report.skipped.append((path, str(err)))
+        return _logged(f"compress [{source}]", report)
+    after = wof.on_disk(path)[1]
+    report.compressed = report.freed = max(0, before - after)
+    report.deleted = 0
+    if done.returncode and not report.compressed:
+        tail = (done.stdout or done.stderr).strip().splitlines()[-1:] or ["compact.exe failed"]
+        report.skipped.append((path, tail[0]))
+    else:
+        journal.add(path, report.compressed, files, journal.COMPRESSED, algorithm, source,
+                    batch or journal.new_batch())
+    logger.info("compress %s with %s: %d -> %d bytes on disk", path, algorithm, before, after)
+    return _logged(f"compress [{source}]", report)
+
+
+def uncompress(path: str) -> int:
+    """Undo `compress`. Returns the bytes the folder takes again. Raises OSError."""
+    before = wof.on_disk(path)[1]
+    done = _compact(path, ["/U", "/EXE"])
+    after = wof.on_disk(path)[1]
+    logger.info("uncompress %s: %d -> %d bytes on disk (exit %d)", path, before, after,
+                done.returncode)
+    if done.returncode and after <= before:
+        lines = (done.stdout or done.stderr).strip().splitlines()
+        raise OSError(lines[-1] if lines else "compact.exe failed")
+    return max(0, after - before)
+
+
 def restore(entry: dict) -> None:
     """Put a journal entry back where it was. Raises OSError with the reason if it cannot."""
     location, original = entry.get("location", ""), entry["path"]
     if entry.get("state") == "restored":
         raise OSError("already restored")
+    if entry["mode"] == journal.COMPRESSED:
+        if not os.path.isdir(original):
+            raise OSError("the folder is no longer there")
+        uncompress(original)
+        journal.mark_restored(entry["id"])
+        return
     if entry["mode"] == journal.PERMANENT:
         raise OSError("deleted permanently: it cannot be recovered")
     if not location:

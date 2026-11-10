@@ -13,6 +13,7 @@ from datetime import datetime
 from diskdiet import settings
 
 TRASH, PERMANENT, MOVED = "trash", "permanent", "moved"
+COMPRESSED = "compressed"  # still in place; `location` holds the algorithm
 
 
 def _file() -> str:

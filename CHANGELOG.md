@@ -20,6 +20,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   what is listed there, nor anything inside it.
 - “Clean everything safe” ticks every safe item and opens the usual preview.
 - “Undo last cleanup” in the Log tab puts back everything of the latest cleanup.
+- Compress tab: transparent NTFS compression (XPRESS / LZX, like `compact.exe`) of
+  programs, SDKs and other folders that are read but rarely written, with an estimate of
+  the saving. Nothing is deleted; Decompress or the Log tab undoes it.
 
 ### Changed
 
