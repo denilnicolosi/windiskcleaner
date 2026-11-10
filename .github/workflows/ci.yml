@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run ruff check
+      - run: uv run pytest
+      - name: Build exe
+        run: ./scripts/build.ps1
+      - name: Exe starts and scans a folder
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/DiskDiet.exe -ArgumentList "--report","json","--root","$PWD\tests","--out","$PWD\smoke.json" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "exe exited with $($p.ExitCode)" }
+          if ((Get-Content smoke.json -Raw | ConvertFrom-Json).files -lt 1) { throw "empty report" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DiskDiet-ci
+          path: dist/DiskDiet.exe
+          retention-days: 7

@@ -1,0 +1,93 @@
+name: Release
+
+# Pushing a tag vX.Y.Z builds the exe and publishes a GitHub Release. See docs/RELEASING.md.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+
+      - name: Tag must match the version in pyproject.toml
+        id: version
+        shell: pwsh
+        run: |
+          $v = uv run python -c "import diskdiet; print(diskdiet.__version__)"
+          if ("v$v" -ne $env:GITHUB_REF_NAME) { throw "tag $env:GITHUB_REF_NAME does not match version $v" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - run: uv run ruff check
+      - run: uv run pytest
+      - run: ./scripts/build.ps1
+
+      - name: Name the exe after the version
+        shell: pwsh
+        run: Move-Item dist/DiskDiet.exe "dist/DiskDiet-${{ steps.version.outputs.version }}.exe"
+
+      # --- Code signing (SignPath Foundation, free for open source) ---------------------
+      # Skipped until the SIGNPATH_* secrets and variables exist: docs/RELEASING.md explains
+      # how to obtain them. Check the action's inputs against SignPath's current
+      # documentation when enabling it.
+      - name: Upload unsigned exe for signing
+        if: env.SIGNPATH_API_TOKEN != ''
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned
+          path: dist/DiskDiet-${{ steps.version.outputs.version }}.exe
+      - name: Sign with SignPath
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: dist
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $exe = Get-Item "dist/DiskDiet-${{ steps.version.outputs.version }}.exe"
+          "$((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower())  $($exe.Name)" |
+            Out-File "$($exe.FullName).sha256" -Encoding ascii
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/DiskDiet-${{ steps.version.outputs.version }}.exe
+
+      - name: Release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $v = [regex]::Escape("${{ steps.version.outputs.version }}")
+          $text = Get-Content CHANGELOG.md -Raw
+          $m = [regex]::Match($text, "(?ms)^## \[$v\].*?\r?\n(.*?)(?=^## \[|\z)")
+          if (-not $m.Success) { throw "CHANGELOG.md has no section for this version" }
+          $notes = $m.Groups[1].Value.Trim()
+          if (-not $env:SIGNPATH_API_TOKEN) {
+            $notes += "`n`n> This exe is **not code-signed**: Windows SmartScreen may warn. Verify it with the attached SHA-256 or ``gh attestation verify``."
+          }
+          $notes | Out-File notes.md -Encoding utf8
+
+      - name: Publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          gh release create "v$v" "dist/DiskDiet-$v.exe" "dist/DiskDiet-$v.exe.sha256" --title "DiskDiet $v" --notes-file notes.md
