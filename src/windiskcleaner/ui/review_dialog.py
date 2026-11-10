@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, advisor, journal
-from diskdiet.strings import fmt_size, tr
+from windiskcleaner import actions, advisor, journal
+from windiskcleaner.strings import fmt_size, tr
 
 DELETE, MOVE, KEEP = "delete", "move", "keep"
 

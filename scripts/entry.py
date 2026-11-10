@@ -2,6 +2,6 @@
 
 import sys
 
-from diskdiet.__main__ import main
+from windiskcleaner.__main__ import main
 
 sys.exit(main())

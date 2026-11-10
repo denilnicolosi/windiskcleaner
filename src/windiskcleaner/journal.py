@@ -1,4 +1,4 @@
-"""Log of everything DiskDiet removed or moved: one JSON object per line. No Qt here.
+"""Log of everything WinDiskCleaner removed or moved: one JSON object per line. No Qt here.
 
 This module only records. The operations themselves (and restoring) are in actions.py.
 """
@@ -10,7 +10,7 @@ import os
 import uuid
 from datetime import datetime
 
-from diskdiet import settings
+from windiskcleaner import settings
 
 TRASH, PERMANENT, MOVED = "trash", "permanent", "moved"
 COMPRESSED = "compressed"  # still in place; `location` holds the algorithm

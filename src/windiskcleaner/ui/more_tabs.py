@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, advisor, compress, history
-from diskdiet.strings import fmt_size, tr
-from diskdiet.ui.widgets import RIGHT, ROLE, SortItem, confirm, make_table, with_filter
+from windiskcleaner import actions, advisor, compress, history
+from windiskcleaner.strings import fmt_size, tr
+from windiskcleaner.ui.widgets import RIGHT, ROLE, SortItem, confirm, make_table, with_filter
 
 
 class CompressTab(QWidget):

@@ -9,14 +9,14 @@ import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-from diskdiet import compress as wof
-from diskdiet import journal, settings
-from diskdiet.log import logger
-from diskdiet.scanner import key, scan, under
+from windiskcleaner import compress as wof
+from windiskcleaner import journal, settings
+from windiskcleaner.log import logger
+from windiskcleaner.scanner import key, scan, under
 
 # The one-file exe unpacks itself into %TEMP%: cleaning temporary files must not delete it.
 _OWN_RUNTIME = key(sys._MEIPASS) if hasattr(sys, "_MEIPASS") else ""
-ARCHIVE_FOLDER = "DiskDiet-Archive"
+ARCHIVE_FOLDER = "WinDiskCleaner-Archive"
 
 
 @dataclass
@@ -49,7 +49,7 @@ def _logged(what: str, report: Report) -> Report:
 
 
 def excluded() -> list[str]:
-    """Keys of what the user asked DiskDiet never to touch (Settings → Exclusions)."""
+    """Keys of what the user asked WinDiskCleaner never to touch (Settings → Exclusions)."""
     return [key(p) for p in settings.load()["exclude"]]
 
 
@@ -160,7 +160,7 @@ def delete(
             report.skipped.append((item, "outside the allowed location"))
             continue
         if _OWN_RUNTIME and (k == _OWN_RUNTIME or under(_OWN_RUNTIME, k)):
-            report.skipped.append((item, "DiskDiet's own runtime files"))
+            report.skipped.append((item, "WinDiskCleaner's own runtime files"))
             continue
         before, files = _measure(item)
         location = ""
@@ -443,7 +443,7 @@ def uninstall(command: str) -> None:
 
 
 def remove_own_file(name: str) -> None:
-    """Delete one of DiskDiet's own files in its data folder (e.g. the imported
+    """Delete one of WinDiskCleaner's own files in its data folder (e.g. the imported
     winapp2.ini). Nothing outside that folder can be named."""
     if os.path.basename(name) != name or name in ("", ".", ".."):
         raise ValueError(f"not a plain file name: {name!r}")
@@ -466,8 +466,8 @@ def uninstall_game(launcher: str, app_id: str) -> None:
 
 
 def relaunch_elevated() -> bool:
-    """Start a second DiskDiet as administrator (UAC prompt). True if it was started."""
+    """Start a second WinDiskCleaner as administrator (UAC prompt). True if it was started."""
     import ctypes
 
-    args = "" if getattr(sys, "frozen", False) else "-m diskdiet"
+    args = "" if getattr(sys, "frozen", False) else "-m windiskcleaner"
     return ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, args, None, 1) > 32

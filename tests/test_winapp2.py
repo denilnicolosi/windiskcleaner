@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from diskdiet import actions, advisor, rules, settings, winapp2
-from diskdiet.scanner import scan
+from windiskcleaner import actions, advisor, rules, settings, winapp2
+from windiskcleaner.scanner import scan
 
 SAMPLE = r"""
 ; comment

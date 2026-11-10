@@ -24,7 +24,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $v = uv run python -c "import diskdiet; print(diskdiet.__version__)"
+          $v = uv run python -c "import windiskcleaner; print(windiskcleaner.__version__)"
           if ("v$v" -ne $env:GITHUB_REF_NAME) { throw "tag $env:GITHUB_REF_NAME does not match version $v" }
           "version=$v" >> $env:GITHUB_OUTPUT
 
@@ -34,7 +34,7 @@ jobs:
 
       - name: Name the exe after the version
         shell: pwsh
-        run: Move-Item dist/DiskDiet.exe "dist/DiskDiet-${{ steps.version.outputs.version }}.exe"
+        run: Move-Item dist/WinDiskCleaner.exe "dist/WinDiskCleaner-${{ steps.version.outputs.version }}.exe"
 
       # --- Code signing (SignPath Foundation, free for open source) ---------------------
       # Skipped until the SIGNPATH_* secrets and variables exist: docs/RELEASING.md explains
@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unsigned
-          path: dist/DiskDiet-${{ steps.version.outputs.version }}.exe
+          path: dist/WinDiskCleaner-${{ steps.version.outputs.version }}.exe
       - name: Sign with SignPath
         if: env.SIGNPATH_API_TOKEN != ''
         uses: signpath/github-action-submit-signing-request@v1
@@ -62,14 +62,14 @@ jobs:
       - name: Checksum
         shell: pwsh
         run: |
-          $exe = Get-Item "dist/DiskDiet-${{ steps.version.outputs.version }}.exe"
+          $exe = Get-Item "dist/WinDiskCleaner-${{ steps.version.outputs.version }}.exe"
           "$((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower())  $($exe.Name)" |
             Out-File "$($exe.FullName).sha256" -Encoding ascii
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: dist/DiskDiet-${{ steps.version.outputs.version }}.exe
+          subject-path: dist/WinDiskCleaner-${{ steps.version.outputs.version }}.exe
 
       - name: Release notes from CHANGELOG.md
         shell: pwsh
@@ -90,4 +90,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $v = "${{ steps.version.outputs.version }}"
-          gh release create "v$v" "dist/DiskDiet-$v.exe" "dist/DiskDiet-$v.exe.sha256" --title "DiskDiet $v" --notes-file notes.md
+          gh release create "v$v" "dist/WinDiskCleaner-$v.exe" "dist/WinDiskCleaner-$v.exe.sha256" --title "WinDiskCleaner $v" --notes-file notes.md

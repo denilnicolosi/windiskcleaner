@@ -22,11 +22,11 @@ jobs:
       - name: Exe starts and scans a folder
         shell: pwsh
         run: |
-          $p = Start-Process dist/DiskDiet.exe -ArgumentList "--report","json","--root","$PWD\tests","--out","$PWD\smoke.json" -Wait -PassThru
+          $p = Start-Process dist/WinDiskCleaner.exe -ArgumentList "--report","json","--root","$PWD\tests","--out","$PWD\smoke.json" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "exe exited with $($p.ExitCode)" }
           if ((Get-Content smoke.json -Raw | ConvertFrom-Json).files -lt 1) { throw "empty report" }
       - uses: actions/upload-artifact@v4
         with:
-          name: DiskDiet-ci
-          path: dist/DiskDiet.exe
+          name: WinDiskCleaner-ci
+          path: dist/WinDiskCleaner.exe
           retention-days: 7

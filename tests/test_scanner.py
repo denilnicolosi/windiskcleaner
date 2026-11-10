@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from diskdiet.scanner import MIN_TRACKED_FILE, PROGRESS_EVERY, ScanCancelled, key, scan
+from windiskcleaner.scanner import MIN_TRACKED_FILE, PROGRESS_EVERY, ScanCancelled, key, scan
 
 
 def test_sizes_roll_up(tmp_path, make):

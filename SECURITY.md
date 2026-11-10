@@ -1,6 +1,6 @@
 ﻿# Security
 
-DiskDiet removes files, so these problems are treated as security issues:
+WinDiskCleaner removes files, so these problems are treated as security issues:
 
 - a way to make it delete something outside the folder a rule points at, or inside the
   never-touch list (`actions.is_protected`);
@@ -10,12 +10,12 @@ DiskDiet removes files, so these problems are treated as security issues:
 - a way to make the updater install a file that is not a release of this repository.
 
 Please report them privately through GitHub's **Report a vulnerability** button on the
-Security tab of this repository, not in a public issue. Include the DiskDiet version, the
+Security tab of this repository, not in a public issue. Include the WinDiskCleaner version, the
 rule or action involved and the steps to reproduce.
 
 Only the latest release is supported.
 
-## What DiskDiet does not do
+## What WinDiskCleaner does not do
 
 - It collects no data. Its only network access is the update check: anonymous requests
   to this repository's GitHub Releases, which can be disabled in Settings. A downloaded

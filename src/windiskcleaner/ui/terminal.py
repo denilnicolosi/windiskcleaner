@@ -9,8 +9,8 @@ from PySide6.QtCore import QProcess, QProcessEnvironment
 from PySide6.QtGui import QFontDatabase, QTextCursor
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout
 
-from diskdiet.log import logger
-from diskdiet.strings import tr
+from windiskcleaner.log import logger
+from windiskcleaner.strings import tr
 
 # "Go to column 1" and "erase line" are what progress bars and spinners use to redraw
 # themselves: treated as a carriage return. Every other escape sequence is dropped.

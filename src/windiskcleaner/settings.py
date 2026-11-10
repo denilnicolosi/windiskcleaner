@@ -1,4 +1,4 @@
-"""User preferences, stored as JSON in %LOCALAPPDATA%\\DiskDiet. No Qt here."""
+"""User preferences, stored as JSON in %LOCALAPPDATA%\\WinDiskCleaner. No Qt here."""
 
 from __future__ import annotations
 
@@ -11,14 +11,33 @@ DEFAULTS = {
     "check_updates": True,
     "old_days": 730,
     "dup_min_mb": 1,
-    "exclude": [],  # folders and files DiskDiet must never propose or remove
+    "exclude": [],  # folders and files WinDiskCleaner must never propose or remove
 }
 
 
 def data_dir() -> str:
-    """Folder for settings and the deletion log. DISKDIET_HOME overrides it (tests)."""
+    """Folder for settings and the deletion log. WINDISKCLEANER_HOME overrides it (tests)."""
     base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    return os.environ.get("DISKDIET_HOME") or os.path.join(base, "DiskDiet")
+    return os.environ.get("WINDISKCLEANER_HOME") or os.path.join(base, "WinDiskCleaner")
+
+
+OLD_NAME = "DiskDiet"  # the program's name before 0.2.0
+
+
+def migrate_old_home() -> str:
+    """Rename the data folder of the former name (settings, log of removed items, scan
+    history) to the current one, once. Returns the old path when it moved, else ""."""
+    if os.environ.get("WINDISKCLEANER_HOME"):
+        return ""
+    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    old, new = os.path.join(base, OLD_NAME), data_dir()
+    if not os.path.isdir(old) or os.path.exists(new):
+        return ""
+    try:
+        os.rename(old, new)  # same drive: instant; the old log file keeps its name
+    except OSError:
+        return ""  # in use (old version still open): the new folder starts empty
+    return old
 
 
 def _file() -> str:

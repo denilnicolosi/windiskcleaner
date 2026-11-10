@@ -1,7 +1,7 @@
 import json
 import os
 
-from diskdiet import games
+from windiskcleaner import games
 
 
 def test_vdf_reads_nested_keys_and_escaped_paths():

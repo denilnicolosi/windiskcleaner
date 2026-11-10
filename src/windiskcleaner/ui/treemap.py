@@ -6,7 +6,7 @@ from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QToolTip, QWidget
 
-from diskdiet.strings import fmt_size
+from windiskcleaner.strings import fmt_size
 
 Rect = tuple[float, float, float, float]  # x, y, width, height
 INNER_MIN = 40  # boxes smaller than this (px) are not split into their own children

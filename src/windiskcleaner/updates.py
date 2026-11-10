@@ -1,4 +1,4 @@
-"""Update check against GitHub Releases. The only network access in DiskDiet.
+"""Update check against GitHub Releases. The only network access in WinDiskCleaner.
 
 Nothing about the user or the machine is sent: these are plain anonymous GET requests.
 No Qt here.
@@ -16,9 +16,9 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from diskdiet import __version__
+from windiskcleaner import __version__
 
-REPO = "denilnicolosi/diskdiet"
+REPO = "denilnicolosi/windiskcleaner"
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
 DOWNLOADS = f"https://github.com/{REPO}/releases/download/"
 
@@ -33,7 +33,7 @@ class Release:
 
 
 def _fetch(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "DiskDiet"})
+    request = urllib.request.Request(url, headers={"User-Agent": "WinDiskCleaner"})
     with urllib.request.urlopen(request, timeout=20) as response:
         return response.read()
 

@@ -8,9 +8,9 @@ import urllib.error
 
 import pytest
 
-from diskdiet import actions, advisor, journal, rules, settings, updates
-from diskdiet.rules import Action, Command
-from diskdiet.scanner import scan
+from windiskcleaner import actions, advisor, journal, rules, settings, updates
+from windiskcleaner.rules import Action, Command
+from windiskcleaner.scanner import scan
 
 
 def fake_bin(tmp_path):
@@ -78,14 +78,14 @@ def test_restore_refuses_when_it_cannot_be_exact(tmp_path, make):
 def test_real_recycle_bin_round_trip(make):
     """One tiny file of ours goes to the real Recycle Bin and comes back."""
     pytest.importorskip("PySide6")
-    path = make("cache/roundtrip.txt", content=b"diskdiet")
+    path = make("cache/roundtrip.txt", content=b"windiskcleaner")
     report = actions.delete([path], [os.path.dirname(path)])
     if not report.deleted or not journal.load()[-1]["location"]:
         pytest.skip("no Recycle Bin available here")
     entry = journal.load()[-1]
     assert not os.path.exists(path)
     actions.restore(entry)
-    assert open(path, "rb").read() == b"diskdiet"
+    assert open(path, "rb").read() == b"windiskcleaner"
 
 
 # ---- move ---------------------------------------------------------------------------
@@ -110,10 +110,11 @@ def test_move_copies_verifies_then_removes(tmp_path, make):
 def test_move_keeps_original_when_destination_is_taken_or_full(tmp_path, make, monkeypatch):
     video = make("Videos/clip.mp4", 100)
     dest = str(tmp_path / "other-drive")
-    os.makedirs(os.path.dirname(actions.archive_target(video, dest)))
-    open(actions.archive_target(video, dest), "wb").close()
+    taken = actions._long(actions.archive_target(video, dest))  # may pass 260 characters
+    os.makedirs(os.path.dirname(taken))
+    open(taken, "wb").close()
     assert actions.move([video], dest).skipped[0][1] == "already present at the destination"
-    os.remove(actions.archive_target(video, dest))
+    os.remove(taken)
 
     monkeypatch.setattr(actions.shutil, "disk_usage", lambda _p: shutil._ntuple_diskusage(0, 0, 10))
     assert actions.move([video], dest).skipped[0][1] == "not enough space at the destination"
@@ -147,8 +148,9 @@ def test_settings_round_trip_and_tolerate_damage(tmp_path):
 def release(exe=b"new exe", sha=None, base=updates.DOWNLOADS):
     digest = sha or hashlib.sha256(exe).hexdigest()
     pages = {
-        base + "v9.0.0/DiskDiet-9.0.0.exe": exe,
-        base + "v9.0.0/DiskDiet-9.0.0.exe.sha256": f"{digest}  DiskDiet-9.0.0.exe\n".encode(),
+        base + "v9.0.0/WinDiskCleaner-9.0.0.exe": exe,
+        base + "v9.0.0/WinDiskCleaner-9.0.0.exe.sha256":
+            f"{digest}  WinDiskCleaner-9.0.0.exe\n".encode(),
     }
     rel = updates.Release("9.0.0", "notes", "page", *pages)
     return rel, pages.__getitem__
@@ -162,8 +164,8 @@ def test_version_comparison():
 
 def test_latest_parses_the_release_and_handles_no_release():
     body = (b'{"tag_name": "v9.0.0", "body": "notes", "html_url": "page", "assets": ['
-            b'{"name": "DiskDiet-9.0.0.exe", "browser_download_url": "U1"},'
-            b'{"name": "DiskDiet-9.0.0.exe.sha256", "browser_download_url": "U2"}]}')
+            b'{"name": "WinDiskCleaner-9.0.0.exe", "browser_download_url": "U1"},'
+            b'{"name": "WinDiskCleaner-9.0.0.exe.sha256", "browser_download_url": "U2"}]}')
     found = updates.latest(lambda _url: body)
     assert (found.version, found.exe_url, found.sha_url) == ("9.0.0", "U1", "U2")
 
@@ -189,13 +191,13 @@ def test_download_checks_origin_and_hash(tmp_path):
 
 
 def test_swap_replaces_the_exe_and_cleanup_removes_the_old_one(tmp_path, make):
-    current = make("app/DiskDiet.exe", content=b"old")
-    new = make("app/DiskDiet.new.exe", content=b"new")
+    current = make("app/WinDiskCleaner.exe", content=b"old")
+    new = make("app/WinDiskCleaner.new.exe", content=b"new")
     updates.swap(new, current, start=False)
     assert open(current, "rb").read() == b"new"
     assert open(current + ".old", "rb").read() == b"old"
     updates.cleanup(current)
-    assert os.listdir(os.path.dirname(current)) == ["DiskDiet.exe"]
+    assert os.listdir(os.path.dirname(current)) == ["WinDiskCleaner.exe"]
 
 
 # ---- commands -----------------------------------------------------------------------

@@ -1,9 +1,9 @@
-﻿# DiskDiet
+﻿# WinDiskCleaner
 
 Portable Windows tool that shows where your disk space went and tells you, with reasons,
 what is safe to remove. One `.exe`, no installation, no telemetry.
 
-![DiskDiet overview with sample data](docs/screenshot.png)
+![WinDiskCleaner overview with sample data](docs/screenshot.png)
 
 Interface in English and Italian (follows the Windows language).
 
@@ -25,14 +25,14 @@ Interface in English and Italian (follows the Windows language).
   candidates for another drive. The guided check can move them there (copy, verify,
   then remove the original).
 - **Duplicates** — identical files found by content, hashed in parallel.
-- **Deleted files** — a log of everything DiskDiet removed or moved, with Restore.
+- **Deleted files** — a log of everything WinDiskCleaner removed or moved, with Restore.
 - **Settings** — theme, language, thresholds, update check.
 - Progress bar at the bottom for scans, duplicate search and clean-ups.
 - **Report** — export as JSON or HTML.
 
 ## Safety
 
-| Level | What DiskDiet does |
+| Level | What WinDiskCleaner does |
 |---|---|
 | Safe | Empties the folder after you tick it and confirm. Goes to the Recycle Bin, except temporary files, which are deleted permanently (the confirmation says so). |
 | Check first | Guided check: one question per item (delete / keep), one confirmation at the end. Deleted items go to the Recycle Bin. |
@@ -41,10 +41,10 @@ Interface in English and Italian (follows the Windows language).
 
 - Nothing is removed without a preview and an explicit confirmation.
 - Everything removed is logged and, unless it was a temporary file, can be restored from
-  the **Deleted files** tab. On exit DiskDiet tells you how much is waiting in the
+  the **Deleted files** tab. On exit WinDiskCleaner tells you how much is waiting in the
   Recycle Bin: that space is free only once the bin is emptied.
 - Files in use are skipped, never forced.
-- Before a command that changes Windows itself (hibernation, component clean-up) DiskDiet
+- Before a command that changes Windows itself (hibernation, component clean-up) WinDiskCleaner
   offers to create a **restore point**. It covers system files and the registry, not your
   own files: for those the safety net is the Recycle Bin.
 - `C:\Windows` (except `Temp`), `Program Files` and other users' profiles are never touched.
@@ -60,7 +60,7 @@ Interface in English and Italian (follows the Windows language).
 
 ## Download
 
-Get `DiskDiet-<version>.exe` from the [Releases](../../releases) page and run it.
+Get `WinDiskCleaner-<version>.exe` from the [Releases](../../releases) page and run it.
 
 The exe is built by GitHub Actions from this repository. Until the project has a code
 signing certificate, Windows SmartScreen may warn about an unknown publisher and some
@@ -68,7 +68,7 @@ antivirus products may flag it, as they often do with PyInstaller programs. You 
 that your download is the one built here:
 
 ```
-gh attestation verify DiskDiet-<version>.exe --repo denilnicolosi/diskdiet
+gh attestation verify WinDiskCleaner-<version>.exe --repo denilnicolosi/windiskcleaner
 ```
 
 or compare its SHA-256 with the `.sha256` file attached to the release.
@@ -76,7 +76,7 @@ or compare its SHA-256 with the `.sha256` file attached to the release.
 ## Command line
 
 ```
-DiskDiet.exe --report json --root C:\ --out report.json
+WinDiskCleaner.exe --report json --root C:\ --out report.json
 ```
 
 Scans without opening a window and writes the same data the Report menu exports.
@@ -87,20 +87,20 @@ Requires [uv](https://docs.astral.sh/uv/).
 
 ```
 uv sync
-uv run python -m diskdiet
+uv run python -m windiskcleaner
 uv run pytest
 ```
 
-Build the exe: `pwsh scripts/build.ps1` → `dist/DiskDiet.exe`.
+Build the exe: `pwsh scripts/build.ps1` → `dist/WinDiskCleaner.exe`.
 
-Settings, the deletion log and `diskdiet.log` (operations and errors, useful when
-reporting a bug) live in `%LOCALAPPDATA%\DiskDiet`; Settings → About has a button that
+Settings, the deletion log and `windiskcleaner.log` (operations and errors, useful when
+reporting a bug) live in `%LOCALAPPDATA%\WinDiskCleaner`; Settings → About has a button that
 opens it. Nothing in it leaves your computer. Delete the folder to reset the program.
 
 ## Contributing
 
 Most useful contribution: a new cleanup rule for a program you know. It is one entry in
-[`src/diskdiet/rules.py`](src/diskdiet/rules.py); see [docs/RULES.md](docs/RULES.md).
+[`src/windiskcleaner/rules.py`](src/windiskcleaner/rules.py); see [docs/RULES.md](docs/RULES.md).
 Architecture in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), process in
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

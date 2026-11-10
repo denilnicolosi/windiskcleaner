@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
-from diskdiet.scanner import FileInfo, ScanCancelled, key, under
+from windiskcleaner.scanner import FileInfo, ScanCancelled, key, under
 
 HEAD = 64 << 10
 CHUNK = 1 << 20

@@ -70,10 +70,10 @@ summary page is confirmed. `advisor.review_items` decides what is asked about.
 
 ## Moving, logging, restoring
 
-`actions.move` copies to `<drive>\DiskDiet-Archive\<original path>`, compares size and
+`actions.move` copies to `<drive>\WinDiskCleaner-Archive\<original path>`, compares size and
 file count, and only then removes the original.
 
-`journal.py` appends one line per removed item to `%LOCALAPPDATA%\DiskDiet\deleted.jsonl`
+`journal.py` appends one line per removed item to `%LOCALAPPDATA%\WinDiskCleaner\deleted.jsonl`
 (original path, size, mode, where it is now). For the Recycle Bin the location comes from
 `QFile(path).moveToTrash()`: the *instance* method renames the `QFile` to its `$R…` path in
 the bin, while the static one reports nothing. `actions.restore` moves the item back and
@@ -83,7 +83,7 @@ place is occupied or the item is gone.
 ## Commands
 
 A `rules.Command` is an argument tuple. `ui/terminal.py` starts it with `QProcess`
-(no shell) and streams the output. Commands marked `admin` need an elevated DiskDiet,
+(no shell) and streams the output. Commands marked `admin` need an elevated WinDiskCleaner,
 because the output of a separately elevated process cannot be captured; the window
 offers `actions.relaunch_elevated` instead.
 
@@ -105,7 +105,7 @@ fails: that is how a restore point is created before a system command.
 
 ## Logging
 
-`log.setup()` (called by the window, not by tests) writes `diskdiet.log` next to the
+`log.setup()` (called by the window, not by tests) writes `windiskcleaner.log` next to the
 settings: 1 MB, two older files kept. See CLAUDE.md for what is recorded.
 
 ## Threads

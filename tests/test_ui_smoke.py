@@ -7,16 +7,16 @@ import pytest
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QApplication
 
-from diskdiet import actions, advisor, journal, report, rules
-from diskdiet.scanner import MIN_TRACKED_FILE, scan
-from diskdiet.strings import S
-from diskdiet.ui.main_window import MainWindow
-from diskdiet.ui.pie import PieWidget
-from diskdiet.ui.review_dialog import DELETE, KEEP, ReviewDialog
-from diskdiet.ui.settings_dialog import SettingsDialog
-from diskdiet.ui.terminal import Terminal, decode
+from windiskcleaner import actions, advisor, journal, report, rules
+from windiskcleaner.scanner import MIN_TRACKED_FILE, scan
+from windiskcleaner.strings import S
+from windiskcleaner.ui.main_window import MainWindow
+from windiskcleaner.ui.pie import PieWidget
+from windiskcleaner.ui.review_dialog import DELETE, KEEP, ReviewDialog
+from windiskcleaner.ui.settings_dialog import SettingsDialog
+from windiskcleaner.ui.terminal import Terminal, decode
 
-SRC = Path(__file__).parent.parent / "src" / "diskdiet"
+SRC = Path(__file__).parent.parent / "src" / "windiskcleaner"
 
 
 @pytest.fixture
@@ -69,7 +69,7 @@ def test_every_recommendation_can_be_selected(app, tmp_path, make, monkeypatch):
 
 
 def test_commands_become_buttons(app):
-    from diskdiet.advisor import Recommendation
+    from windiskcleaner.advisor import Recommendation
 
     rule = next(r for r in rules.RULES if r.id == "hibernation")
     rec = Recommendation(rule.id, rule.category, rule.safety, rule.action, "Hibernation", "why",
@@ -116,7 +116,7 @@ def test_overview_delete_updates_sizes(app, tmp_path, make, monkeypatch):
     window, result, _recs = scanned_window(tmp_path, make, monkeypatch)
     node = next(n for n in result.root.children if n.name == "data")
     before = result.root.size
-    monkeypatch.setattr("diskdiet.ui.tabs.confirm", lambda *a, **k: True)
+    monkeypatch.setattr("windiskcleaner.ui.tabs.confirm", lambda *a, **k: True)
     monkeypatch.setattr(actions, "_qt_trash", lambda p: os.rename(p, p + "~"))
     monkeypatch.setattr(window, "show_report", lambda outcome: None)
     window.overview.delete(node)
@@ -147,7 +147,7 @@ def test_settings_dialog_saves(app):
     dialog.theme.setCurrentIndex(dialog.theme.findData("dark"))
     dialog.old_days.setValue(365)
     dialog.accept()
-    from diskdiet import settings
+    from windiskcleaner import settings
 
     assert settings.load()["theme"] == "dark" and settings.load()["old_days"] == 365
     window.close()
@@ -162,7 +162,7 @@ def test_terminal_runs_a_command_and_shows_output(app):
     assert "hello from child" in terminal.output.toPlainText()
     assert terminal.close_button.isEnabled()
 
-    missing = Terminal(None, "x", [["diskdiet-no-such-program"]])
+    missing = Terminal(None, "x", [["windiskcleaner-no-such-program"]])
     app.processEvents()
     assert missing.close_button.isEnabled()
     assert decode("è".encode()) == "è" and decode(b"\x8a")  # falls back without raising
@@ -199,7 +199,7 @@ def test_every_string_key_used_in_the_code_exists():
 
 
 def test_filter_words_and_sizes():
-    from diskdiet.ui.widgets import matches
+    from windiskcleaner.ui.widgets import matches
 
     assert matches("video mp4", r"C:\Users\me\Videos\video.mp4")
     assert not matches("video avi", r"C:\Users\me\Videos\video.mp4")
@@ -209,7 +209,7 @@ def test_filter_words_and_sizes():
 
 
 def test_file_kinds():
-    from diskdiet import advisor
+    from windiskcleaner import advisor
 
     assert advisor.kind_of(".MP4") == "video" and advisor.kind_of(".gguf") == "data"
     assert advisor.kind_of(".xyz") == "other"
@@ -230,7 +230,7 @@ def test_overview_rescan_updates_one_folder(app, tmp_path, make, monkeypatch):
 
 
 def test_squarify_fills_the_rectangle_in_proportion():
-    from diskdiet.ui.treemap import squarify
+    from windiskcleaner.ui.treemap import squarify
 
     values = [60, 25, 10, 5, 0]
     rects = squarify(values, (0, 0, 200, 100))

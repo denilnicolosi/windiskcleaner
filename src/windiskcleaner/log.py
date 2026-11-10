@@ -1,6 +1,6 @@
-"""Log file for operations and errors: %LOCALAPPDATA%\\DiskDiet\\diskdiet.log.
+"""Log file for operations and errors: %LOCALAPPDATA%\\WinDiskCleaner\\windiskcleaner.log.
 
-Everything logs through logging.getLogger("diskdiet"). Until setup() is called (tests,
+Everything logs through logging.getLogger("windiskcleaner"). Until setup() is called (tests,
 library use) that logger has only a NullHandler and nothing is written anywhere.
 """
 
@@ -12,14 +12,14 @@ import sys
 import threading
 from logging.handlers import RotatingFileHandler
 
-from diskdiet import settings
+from windiskcleaner import settings
 
-logger = logging.getLogger("diskdiet")
+logger = logging.getLogger("windiskcleaner")
 logger.addHandler(logging.NullHandler())
 
 
 def path() -> str:
-    return os.path.join(settings.data_dir(), "diskdiet.log")
+    return os.path.join(settings.data_dir(), "windiskcleaner.log")
 
 
 def setup() -> None:

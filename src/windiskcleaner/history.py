@@ -1,6 +1,6 @@
 """Summaries of past scans, to show what grew since the last one. Records only.
 
-One JSON line per scan in `%LOCALAPPDATA%\\DiskDiet\\history.jsonl`: the root, its total
+One JSON line per scan in `%LOCALAPPDATA%\\WinDiskCleaner\\history.jsonl`: the root, its total
 and the size of every folder down to DEPTH levels that is at least MIN_FOLDER. Paths
 stay on this machine, like the log.
 """
@@ -11,8 +11,8 @@ import json
 import os
 from datetime import datetime
 
-from diskdiet import settings
-from diskdiet.scanner import ScanResult, key, under
+from windiskcleaner import settings
+from windiskcleaner.scanner import ScanResult, key, under
 
 DEPTH = 4
 MIN_FOLDER = 20 << 20

@@ -24,9 +24,9 @@ class Safety(Enum):
 
 
 class Action(Enum):
-    DELETE = "delete"  # DiskDiet empties the folder / removes the file after confirmation
+    DELETE = "delete"  # WinDiskCleaner empties the folder / removes the file after confirmation
     REVIEW = "review"  # guided check: one question per item, then delete / move / keep
-    GUIDE = "guide"  # DiskDiet offers commands to run and/or opens a Windows tool
+    GUIDE = "guide"  # WinDiskCleaner offers commands to run and/or opens a Windows tool
 
 
 VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/\-]{0,99}")
@@ -38,7 +38,7 @@ class Command:
 
     label: Text
     argv: tuple[str, ...]  # "{value}" is replaced by what the user types for `ask`
-    admin: bool = False  # needs an elevated DiskDiet
+    admin: bool = False  # needs an elevated WinDiskCleaner
     changes: bool = False  # modifies the system: confirmed before running
     ask: Text = ""  # prompt for {value}
     options_from: tuple[str, ...] = ()  # read-only command that lists the possible values
@@ -111,7 +111,7 @@ LL = r"%USERPROFILE%\AppData\LocalLow"
 RESTORE_POINT = Command(
     ("Create a restore point now", "Crea un punto di ripristino adesso"),
     ("powershell", "-NoProfile", "-Command",
-     "Checkpoint-Computer -Description 'DiskDiet' -RestorePointType MODIFY_SETTINGS"),
+     "Checkpoint-Computer -Description 'WinDiskCleaner' -RestorePointType MODIFY_SETTINGS"),
     admin=True,
 )
 

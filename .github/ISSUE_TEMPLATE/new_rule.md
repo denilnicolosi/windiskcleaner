@@ -1,6 +1,6 @@
 ---
 name: New cleanup rule
-about: A program whose cache or leftovers DiskDiet should know about
+about: A program whose cache or leftovers WinDiskCleaner should know about
 labels: rule
 ---
 

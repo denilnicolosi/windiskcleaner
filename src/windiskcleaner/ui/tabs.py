@@ -32,17 +32,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, advisor, journal, rules, system, vhdx
-from diskdiet.duplicates import find_duplicates
-from diskdiet.log import logger
-from diskdiet.rules import RESTORE_POINT, Action, Safety
-from diskdiet.scanner import scan
-from diskdiet.strings import fmt_size, pick, tr
-from diskdiet.ui.pie import PieWidget
-from diskdiet.ui.review_dialog import ReviewDialog
-from diskdiet.ui.terminal import Terminal, decode
-from diskdiet.ui.treemap import TreemapWidget
-from diskdiet.ui.widgets import (
+from windiskcleaner import actions, advisor, journal, rules, system, vhdx
+from windiskcleaner.duplicates import find_duplicates
+from windiskcleaner.log import logger
+from windiskcleaner.rules import RESTORE_POINT, Action, Safety
+from windiskcleaner.scanner import scan
+from windiskcleaner.strings import fmt_size, pick, tr
+from windiskcleaner.ui.pie import PieWidget
+from windiskcleaner.ui.review_dialog import ReviewDialog
+from windiskcleaner.ui.terminal import Terminal, decode
+from windiskcleaner.ui.treemap import TreemapWidget
+from windiskcleaner.ui.widgets import (
     GREY_FREE,
     GREY_OTHER,
     GREY_UNSCANNED,
@@ -799,7 +799,7 @@ class ProgramsTab(QWidget):
 
 
 class JournalTab(QWidget):
-    """Everything DiskDiet removed or moved, with a way back."""
+    """Everything WinDiskCleaner removed or moved, with a way back."""
 
     def __init__(self, win):
         super().__init__()

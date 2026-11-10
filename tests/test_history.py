@@ -1,5 +1,5 @@
-from diskdiet import history
-from diskdiet.scanner import scan
+from windiskcleaner import history
+from windiskcleaner.scanner import scan
 
 MB = 1 << 20
 
@@ -45,8 +45,8 @@ def test_csv_lists_folders_and_files(tmp_path, make):
     import csv
     import io
 
-    from diskdiet import report
-    from diskdiet.scanner import MIN_TRACKED_FILE
+    from windiskcleaner import report
+    from windiskcleaner.scanner import MIN_TRACKED_FILE
 
     make("a/big.bin", MIN_TRACKED_FILE)
     make("a/b/small.txt", 5)
@@ -58,3 +58,17 @@ def test_csv_lists_folders_and_files(tmp_path, make):
     assert ("file", str(tmp_path / "a" / "big.bin")) in kinds
     root = next(r for r in rows if r["path"] == str(tmp_path))
     assert int(root["bytes"]) == MIN_TRACKED_FILE + 5
+
+
+def test_old_data_folder_moves_to_the_new_name_once(tmp_path, monkeypatch):
+    from windiskcleaner import settings
+
+    monkeypatch.delenv("WINDISKCLEANER_HOME")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    old = tmp_path / settings.OLD_NAME
+    old.mkdir()
+    (old / "deleted.jsonl").write_text("{}\n")
+    assert settings.migrate_old_home() == str(old)
+    assert (tmp_path / "WinDiskCleaner" / "deleted.jsonl").exists() and not old.exists()
+    old.mkdir()  # the old version ran again: the new folder is kept as it is
+    assert settings.migrate_old_home() == "" and old.exists()

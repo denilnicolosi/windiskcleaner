@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from diskdiet import actions
+from windiskcleaner import actions
 
 
 def test_preview_lists_contents_of_folders_and_file_targets(tmp_path, make):
@@ -109,8 +109,8 @@ def test_protected_items_are_refused_even_inside_the_root(monkeypatch, tmp_path,
 
 
 def test_user_exclusions_are_never_removed_nor_proposed(tmp_path, make, monkeypatch):
-    from diskdiet import advisor, rules, settings
-    from diskdiet.scanner import scan
+    from windiskcleaner import advisor, rules, settings
+    from windiskcleaner.scanner import scan
 
     keep = make("temp/keep/notes.txt", 5)
     gone = make("temp/old.tmp", 5)

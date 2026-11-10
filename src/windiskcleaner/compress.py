@@ -14,7 +14,7 @@ import sys
 import zlib
 from collections.abc import Iterable
 
-from diskdiet.scanner import key, under
+from windiskcleaner.scanner import key, under
 
 ALGORITHMS = ("XPRESS4K", "XPRESS8K", "XPRESS16K", "LZX")  # faster ... smaller
 DEFAULT = "XPRESS8K"
@@ -125,7 +125,7 @@ def candidates(result, exclude: Iterable[str] = ()) -> list[tuple[str, int]]:
     """(folder, size) of catalogue folders inside the scan worth compressing, biggest first."""
     import glob
 
-    from diskdiet.advisor import measure
+    from windiskcleaner.advisor import measure
 
     root, keys = key(result.root.path), [key(p) for p in exclude]
     found = []

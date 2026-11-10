@@ -3,11 +3,11 @@ import time
 
 import pytest
 
-from diskdiet import actions, advisor, rules
-from diskdiet.rules import Action, Safety
-from diskdiet.scanner import scan
-from diskdiet.strings import S
-from diskdiet.system import Program
+from windiskcleaner import actions, advisor, rules
+from windiskcleaner.rules import Action, Safety
+from windiskcleaner.scanner import scan
+from windiskcleaner.strings import S
+from windiskcleaner.system import Program
 
 MB = 1 << 20
 
@@ -178,10 +178,10 @@ def test_new_rules_name_the_program_to_close():
 def test_running_finds_this_process():
     import sys
 
-    from diskdiet import system
+    from windiskcleaner import system
 
     assert system.running(os.path.basename(sys.executable))
-    assert not system.running("surely-not-running-diskdiet-test.exe")
+    assert not system.running("surely-not-running-windiskcleaner-test.exe")
 
 
 def test_build_folders_need_their_project_file(tmp_path, make, monkeypatch):

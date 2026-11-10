@@ -22,10 +22,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import __version__, actions, settings, updates, winapp2
-from diskdiet.log import logger
-from diskdiet.strings import tr
-from diskdiet.ui.icon import pie_pixmap
+from windiskcleaner import __version__, actions, settings, updates, winapp2
+from windiskcleaner.log import logger
+from windiskcleaner.strings import tr
+from windiskcleaner.ui.icon import pie_pixmap
 
 REPO_URL = f"https://github.com/{updates.REPO}"
 
@@ -109,7 +109,7 @@ class SettingsDialog(QDialog):
         about_layout = QVBoxLayout(about)
         logo = QLabel()
         logo.setPixmap(pie_pixmap(72))
-        title = QLabel(f"<b>DiskDiet {__version__}</b>")
+        title = QLabel(f"<b>WinDiskCleaner {__version__}</b>")
         credits_ = QLabel(tr("about.credits", repo=REPO_URL))
         credits_.setWordWrap(True)
         credits_.setTextFormat(Qt.TextFormat.RichText)
@@ -182,7 +182,7 @@ class SettingsDialog(QDialog):
 
     def remove_winapp2(self) -> None:
         try:
-            actions.remove_own_file(winapp2.FILE_NAME)  # DiskDiet's copy, not the user's
+            actions.remove_own_file(winapp2.FILE_NAME)  # WinDiskCleaner's copy, not the user's
         except OSError as err:
             self.community.setText(tr("ui.failed", err=err))
             return

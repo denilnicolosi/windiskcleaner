@@ -11,7 +11,7 @@ LANG: str | None = None  # resolved on first use; tests may set it
 def language() -> str:
     global LANG
     if LANG is None:
-        LANG = os.environ.get("DISKDIET_LANG", "")
+        LANG = os.environ.get("WINDISKCLEANER_LANG", "")
         if LANG not in ("en", "it"):
             LANG = "en"
             if sys.platform == "win32":
@@ -136,12 +136,12 @@ S: dict[str, tuple[str, str]] = {
         "same as “compact.exe”). Nothing is deleted. Best for programs, SDKs and games: "
         "files that are read a lot and rarely changed. Files a program rewrites go back to "
         "normal size. Undo with Decompress or from the Deleted files tab. Program Files "
-        "needs DiskDiet started as administrator.",
+        "needs WinDiskCleaner started as administrator.",
         "Windows può tenere le cartelle compresse e aprirle come sempre (compressione NTFS, "
         "la stessa di “compact.exe”). Non si elimina niente. Ideale per programmi, SDK e "
         "giochi: file letti spesso e cambiati di rado. I file che un programma riscrive "
         "tornano a dimensione normale. Si annulla con Decomprimi o dalla scheda File "
-        "eliminati. Programmi (Program Files) richiede DiskDiet avviato come amministratore.",
+        "eliminati. Programmi (Program Files) richiede WinDiskCleaner avviato come amministratore.",
     ),
     "cmp.algo": ("Method", "Metodo"),
     "cmp.algo.XPRESS4K": ("XPRESS 4K (fastest)", "XPRESS 4K (più veloce)"),
@@ -271,8 +271,8 @@ S: dict[str, tuple[str, str]] = {
     ),
     "vhdx.compact": ("Compact selected…", "Compatta selezionato…"),
     "vhdx.other": (
-        "Belongs to another product: not compacted by DiskDiet.",
-        "Appartiene a un altro prodotto: DiskDiet non lo compatta.",
+        "Belongs to another product: not compacted by WinDiskCleaner.",
+        "Appartiene a un altro prodotto: WinDiskCleaner non lo compatta.",
     ),
     "vhdx.docker_running": (
         "Docker Desktop is running. Quit it (tray icon → Quit) and try again.",
@@ -338,7 +338,7 @@ S.update({
     "col.how": ("How", "Come"),
     "col.state": ("State", "Stato"),
     "action.review": ("Guided check", "Controllo guidato"),
-    "file.protected": ("Protected: DiskDiet never deletes this", "Protetta: DiskDiet non la elimina mai"),
+    "file.protected": ("Protected: WinDiskCleaner never deletes this", "Protetta: WinDiskCleaner non la elimina mai"),
     "file.exclude": ("Never touch this (add to exclusions)", "Non toccare mai (aggiungi alle esclusioni)"),
     "file.trash_confirm": (
         "Move to the Recycle Bin?\n\n{path}\n{size}",
@@ -353,9 +353,9 @@ S.update({
     ),
     # commands and terminal
     "cmd.need_admin": (
-        "This command needs administrator rights.\n\nRestart DiskDiet as administrator now? "
+        "This command needs administrator rights.\n\nRestart WinDiskCleaner as administrator now? "
         "You will need to scan again.",
-        "Questo comando richiede i diritti di amministratore.\n\nRiavviare DiskDiet come "
+        "Questo comando richiede i diritti di amministratore.\n\nRiavviare WinDiskCleaner come "
         "amministratore adesso? Dovrai ripetere l'analisi.",
     ),
     "cmd.bad_value": (
@@ -435,9 +435,9 @@ S.update({
     ),
     # journal and Recycle Bin
     "log.hint": (
-        "Everything DiskDiet removed or moved. Items in the Recycle Bin and moved items can "
+        "Everything WinDiskCleaner removed or moved. Items in the Recycle Bin and moved items can "
         "be put back where they were; temporary files were deleted for good.",
-        "Tutto ciò che DiskDiet ha rimosso o spostato. Gli elementi nel Cestino e quelli "
+        "Tutto ciò che WinDiskCleaner ha rimosso o spostato. Gli elementi nel Cestino e quelli "
         "spostati si possono rimettere dov'erano; i file temporanei sono eliminati per sempre.",
     ),
     "log.restore": ("Restore selected", "Ripristina selezionato"),
@@ -463,14 +463,14 @@ S.update({
     "bin.empty_now": ("Empty Recycle Bin now ({size})", "Svuota Cestino ora ({size})"),
     "bin.empty_confirm": (
         "Permanently delete everything in the Recycle Bin ({size})?\n\n"
-        "This cannot be undone, and includes files you deleted outside DiskDiet.",
+        "This cannot be undone, and includes files you deleted outside WinDiskCleaner.",
         "Eliminare definitivamente tutto il contenuto del Cestino ({size})?\n\n"
-        "Non si può annullare, e include i file eliminati fuori da DiskDiet.",
+        "Non si può annullare, e include i file eliminati fuori da WinDiskCleaner.",
     ),
     # closing summary
     "close.total": (
-        "In this session DiskDiet removed {n:,} items: {size}.",
-        "In questa sessione DiskDiet ha rimosso {n:,} elementi: {size}.",
+        "In this session WinDiskCleaner removed {n:,} items: {size}.",
+        "In questa sessione WinDiskCleaner ha rimosso {n:,} elementi: {size}.",
     ),
     "close.trashed": (
         "{size} were MOVED TO THE RECYCLE BIN. That space is not free yet: empty the bin to "
@@ -487,9 +487,9 @@ S.update({
     "set.general": ("General", "Generale"),
     "set.exclusions": ("Exclusions", "Esclusioni"),
     "set.exclude_hint": (
-        "DiskDiet never proposes, removes, moves or compresses these folders and files, "
+        "WinDiskCleaner never proposes, removes, moves or compresses these folders and files, "
         "nor anything inside them.",
-        "DiskDiet non propone, rimuove, sposta né comprime mai queste cartelle e questi file, "
+        "WinDiskCleaner non propone, rimuove, sposta né comprime mai queste cartelle e questi file, "
         "né ciò che contengono.",
     ),
     "set.exclude_folder": ("Add folder…", "Aggiungi cartella…"),
@@ -521,9 +521,9 @@ S.update({
     "set.dup_min": ("Smallest file compared for duplicates", "File più piccolo confrontato per i duplicati"),
     "set.check_updates": ("Check for updates at startup", "Cerca aggiornamenti all'avvio"),
     "set.privacy": (
-        "The update check is DiskDiet's only network access: an anonymous request to GitHub. "
+        "The update check is WinDiskCleaner's only network access: an anonymous request to GitHub. "
         "Nothing about you or your files is sent.",
-        "La ricerca aggiornamenti è l'unico accesso alla rete di DiskDiet: una richiesta "
+        "La ricerca aggiornamenti è l'unico accesso alla rete di WinDiskCleaner: una richiesta "
         "anonima a GitHub. Non viene inviato nulla su di te o sui tuoi file.",
     ),
     "about.credits": (
@@ -537,7 +537,7 @@ S.update({
     "about.check": ("Check for updates", "Cerca aggiornamenti"),
     # updates
     "upd.checking": ("Checking…", "Controllo in corso…"),
-    "upd.available": ("DiskDiet {version} is available.", "È disponibile DiskDiet {version}."),
+    "upd.available": ("WinDiskCleaner {version} is available.", "È disponibile WinDiskCleaner {version}."),
     "upd.current": ("You have the latest version.", "Hai l'ultima versione."),
     "upd.none": ("No release has been published yet.", "Nessuna versione è stata ancora pubblicata."),
     "upd.failed": ("Update check failed: {err}", "Ricerca aggiornamenti non riuscita: {err}"),
@@ -546,9 +546,9 @@ S.update({
     "upd.open_page": ("Open download page", "Apri pagina di download"),
     "upd.downloading": ("Downloading the update…", "Download dell'aggiornamento…"),
     "upd.confirm": (
-        "Download DiskDiet {version} from GitHub, check its SHA-256, replace this exe and "
+        "Download WinDiskCleaner {version} from GitHub, check its SHA-256, replace this exe and "
         "restart?",
-        "Scaricare DiskDiet {version} da GitHub, verificarne lo SHA-256, sostituire questo exe "
+        "Scaricare WinDiskCleaner {version} da GitHub, verificarne lo SHA-256, sostituire questo exe "
         "e riavviare?",
     ),
     "dup.progress": ("Comparing… {pct}%", "Confronto… {pct}%"),

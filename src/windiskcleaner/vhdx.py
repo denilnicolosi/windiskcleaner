@@ -1,6 +1,6 @@
 """Find Docker/WSL virtual disks and compact them with diskpart.
 
-This is the only part of DiskDiet that asks for administrator rights (one UAC prompt).
+This is the only part of WinDiskCleaner that asks for administrator rights (one UAC prompt).
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 from collections.abc import Iterable
 
-from diskdiet.scanner import FileInfo
+from windiskcleaner.scanner import FileInfo
 
 NO_WINDOW = 0x08000000
 
@@ -52,7 +52,7 @@ def _script_file(path: str) -> str:
 
 
 def prepare(path: str) -> list[str]:
-    """For an already elevated DiskDiet: the diskpart command to run in its own terminal."""
+    """For an already elevated WinDiskCleaner: the diskpart command to run in its own terminal."""
     return ["diskpart", "/s", _script_file(path)]
 
 

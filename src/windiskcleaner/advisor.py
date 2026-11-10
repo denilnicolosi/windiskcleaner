@@ -9,10 +9,10 @@ import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from diskdiet import actions, winapp2
-from diskdiet.rules import RULES, Action, Rule, Safety, question
-from diskdiet.scanner import FileInfo, ScanResult, key, scan, under
-from diskdiet.strings import pick
+from windiskcleaner import actions, winapp2
+from windiskcleaner.rules import RULES, Action, Rule, Safety, question
+from windiskcleaner.scanner import FileInfo, ScanResult, key, scan, under
+from windiskcleaner.strings import pick
 
 DAY = 86400
 OLD_DAYS = 730
@@ -435,10 +435,10 @@ def _community(result: ScanResult, covered: list[str]) -> Recommendation | None:
         pick(("Community cleaning rules (winapp2.ini)", "Regole della community (winapp2.ini)")),
         pick((
             "Folders that the winapp2.ini you imported describes as caches, logs or temporary "
-            "files. Those rules are written by volunteers and not checked by DiskDiet: look "
+            "files. Those rules are written by volunteers and not checked by WinDiskCleaner: look "
             "at each folder before deleting it, and close its program first.",
             "Cartelle che il winapp2.ini importato descrive come cache, log o file temporanei. "
-            "Quelle regole sono scritte da volontari e non sono verificate da DiskDiet: guarda "
+            "Quelle regole sono scritte da volontari e non sono verificate da WinDiskCleaner: guarda "
             "ogni cartella prima di eliminarla e chiudi prima il suo programma.",
         )),
         sum(sizes[p] for p in found), found, question=pick(question("winapp2")),

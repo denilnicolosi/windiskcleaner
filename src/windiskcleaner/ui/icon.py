@@ -1,6 +1,6 @@
 """The application icon: a four-slice pie, drawn in code so there is one source for it.
 
-scripts/make_icon.py saves the same drawing as assets/diskdiet.ico for the exe file.
+scripts/make_icon.py saves the same drawing as assets/windiskcleaner.ico for the exe file.
 """
 
 from __future__ import annotations

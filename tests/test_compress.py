@@ -4,8 +4,8 @@ import sys
 
 import pytest
 
-from diskdiet import actions, compress, journal, settings
-from diskdiet.scanner import scan
+from windiskcleaner import actions, compress, journal, settings
+from windiskcleaner.scanner import scan
 
 MB = 1 << 20
 

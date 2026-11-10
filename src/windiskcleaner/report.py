@@ -7,14 +7,14 @@ import io
 from datetime import datetime
 from html import escape
 
-from diskdiet import __version__
-from diskdiet.strings import fmt_size
+from windiskcleaner import __version__
+from windiskcleaner.strings import fmt_size
 
 
 def to_dict(result, recs, programs=()) -> dict:
     top = sorted(result.root.children, key=lambda n: -n.size)
     return {
-        "diskdiet": __version__,
+        "windiskcleaner": __version__,
         "root": result.root.path,
         "size": result.root.size,
         "files": result.root.files,
@@ -71,11 +71,11 @@ def to_html(data: dict) -> str:
     folders = [[f["path"], fmt_size(f["size"])] for f in data["folders"]]
     files = [[f["path"], fmt_size(f["size"])] for f in data["largest_files"]]
     return (
-        "<!doctype html><meta charset='utf-8'><title>DiskDiet report</title>"
+        "<!doctype html><meta charset='utf-8'><title>WinDiskCleaner report</title>"
         "<style>body{font-family:Segoe UI,sans-serif;margin:2em}"
         "table{border-collapse:collapse;margin-bottom:2em}"
         "td,th{border:1px solid #bbb;padding:4px 8px;text-align:left;vertical-align:top}</style>"
-        f"<h1>DiskDiet — {escape(data['root'])}</h1>"
+        f"<h1>WinDiskCleaner — {escape(data['root'])}</h1>"
         f"<p>{fmt_size(data['size'])} in {data['files']:,} files.</p>"
         "<h2>Recommendations</h2>"
         + _table(["Item", "Size", "Safety", "Why", "Commands"], recs)

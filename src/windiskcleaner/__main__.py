@@ -7,11 +7,11 @@ import json
 import os
 import sys
 
-from diskdiet import __version__
+from windiskcleaner import __version__
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="diskdiet", description="Disk space analyzer.")
+    parser = argparse.ArgumentParser(prog="windiskcleaner", description="Disk space analyzer.")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--report", choices=("json", "html", "csv"), help="scan without a window")
     parser.add_argument("--root", default=os.environ.get("SystemDrive", "C:") + "\\")
@@ -19,12 +19,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if not args.report:
-        from diskdiet.ui.main_window import run
+        from windiskcleaner.ui.main_window import run
 
         return run()
 
-    from diskdiet import advisor, report, rules, settings, system
-    from diskdiet.scanner import scan
+    from windiskcleaner import advisor, report, rules, settings, system
+
+    settings.migrate_old_home()
+    from windiskcleaner.scanner import scan
 
     result = scan(args.root, watch_paths=rules.watch_paths(), watch_names=advisor.REGENERABLE)
     programs = system.installed_programs()

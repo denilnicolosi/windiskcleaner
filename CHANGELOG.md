@@ -16,7 +16,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Guidance for classic Teams leftovers, Python versions, Azure Functions Core Tools
   versions, Clipchamp, Dart/Flutter pub cache and the pnpm store.
 - Warning before cleaning when the program that owns the files is still open.
-- Exclusions (Settings, or right-click a folder): DiskDiet never proposes, removes or moves
+- Exclusions (Settings, or right-click a folder): WinDiskCleaner never proposes, removes or moves
   what is listed there, nor anything inside it.
 - “Clean everything safe” ticks every safe item and opens the usual preview.
 - “Undo last cleanup” in the Log tab puts back everything of the latest cleanup.
@@ -43,12 +43,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - CSV export (File menu and `--report csv`): every folder and tracked file with size,
   file count and date, ready for Excel.
 - Import a winapp2.ini (Settings → Exclusions): its whole-folder rules become suggestions
-  for the guided check, never a one-click cleanup. DiskDiet does not download it.
+  for the guided check, never a one-click cleanup. WinDiskCleaner does not download it.
 - Treemap view in the Overview (button next to the path): every subfolder as a box sized
   by its space, with its own subfolders inside; click to enter, right-click for actions.
 
 ### Changed
 
+- Renamed from DiskDiet to WinDiskCleaner, because a Mac app already uses that name. The
+  data folder `%LOCALAPPDATA%\DiskDiet` moves to `%LOCALAPPDATA%\WinDiskCleaner` at the first
+  start. Version 0.1.0 cannot update itself to this one: download the new exe once.
 - Rebuildable project folders cover more tools (.next, .nuxt, .tox, .dart_tool, Rust
   `target`, .NET `bin`/`obj`, caches of pytest, mypy, ruff…) and generic names such as
   `build` or `bin` count only when the project file is beside them.

@@ -7,9 +7,9 @@ import sys
 import pytest
 from PySide6.QtWidgets import QApplication
 
-from diskdiet import actions, log, rules, scanner
-from diskdiet.scanner import MIN_TRACKED_FILE, scan
-from diskdiet.ui.terminal import Terminal, plain
+from windiskcleaner import actions, log, rules, scanner
+from windiskcleaner.scanner import MIN_TRACKED_FILE, scan
+from windiskcleaner.ui.terminal import Terminal, plain
 
 
 @pytest.fixture
@@ -179,8 +179,8 @@ def test_models_are_ticked_in_a_list_not_typed(app, monkeypatch):
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QDialog, QListWidget
 
-    from diskdiet.ui import tabs
-    from diskdiet.ui.main_window import MainWindow
+    from windiskcleaner.ui import tabs
+    from windiskcleaner.ui.main_window import MainWindow
 
     listing = b"NAME  ID  SIZE\nllama3.1:8b  46e0  4.9 GB\nqwen3.5:9b  77aa  6.6 GB\n"
     monkeypatch.setattr(tabs.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout=listing))

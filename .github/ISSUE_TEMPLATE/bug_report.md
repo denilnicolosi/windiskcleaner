@@ -4,7 +4,7 @@ about: Something is wrong or the advice was bad
 labels: bug
 ---
 
-**DiskDiet version** (window title):
+**WinDiskCleaner version** (window title):
 
 **Windows version**:
 

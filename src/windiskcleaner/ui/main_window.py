@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import (
+from windiskcleaner import (
     __version__,
     actions,
     advisor,
@@ -38,14 +38,14 @@ from diskdiet import (
     system,
     updates,
 )
-from diskdiet.log import logger
-from diskdiet.log import setup as setup_log
-from diskdiet.scanner import scan
-from diskdiet.strings import fmt_size, tr
-from diskdiet.ui.icon import app_icon
-from diskdiet.ui.more_tabs import CompressTab, GamesTab, GrowthTab, TypesTab
-from diskdiet.ui.settings_dialog import SettingsDialog
-from diskdiet.ui.tabs import (
+from windiskcleaner.log import logger
+from windiskcleaner.log import setup as setup_log
+from windiskcleaner.scanner import scan
+from windiskcleaner.strings import fmt_size, tr
+from windiskcleaner.ui.icon import app_icon
+from windiskcleaner.ui.more_tabs import CompressTab, GamesTab, GrowthTab, TypesTab
+from windiskcleaner.ui.settings_dialog import SettingsDialog
+from windiskcleaner.ui.tabs import (
     Duplicates,
     FileTable,
     JournalTab,
@@ -54,7 +54,7 @@ from diskdiet.ui.tabs import (
     RecPanel,
     SystemTab,
 )
-from diskdiet.ui.widgets import MAX_ROWS, Worker, confirm
+from windiskcleaner.ui.widgets import MAX_ROWS, Worker, confirm
 
 _WINDOWS: list[QMainWindow] = []  # keeps windows alive across a language change
 
@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
         self.settings = settings.load()
         self.admin = system.is_admin()
         suffix = f" ({tr('ui.admin')})" if self.admin else ""
-        self.setWindowTitle(f"DiskDiet {__version__}{suffix}")
+        self.setWindowTitle(f"WinDiskCleaner {__version__}{suffix}")
         self.setWindowIcon(app_icon())
         self.resize(1180, 760)
         self.result = self.programs = self.recs = self.release = None
@@ -327,9 +327,10 @@ class MainWindow(QMainWindow):
 
     def export(self, kind: str) -> None:
         if not self.result:
-            QMessageBox.information(self, "DiskDiet", tr("ui.no_scan"))
+            QMessageBox.information(self, "WinDiskCleaner", tr("ui.no_scan"))
             return
-        path, _ = QFileDialog.getSaveFileName(self, "DiskDiet", f"diskdiet-report.{kind}")
+        path, _ = QFileDialog.getSaveFileName(
+            self, "WinDiskCleaner", f"windiskcleaner-report.{kind}")
         if not path:
             return
         data = report.to_dict(self.result, self.recs, self.programs)
@@ -412,7 +413,7 @@ class MainWindow(QMainWindow):
     def show_notes(self) -> None:
         if self.release:
             QMessageBox.information(
-                self, f"DiskDiet {self.release.version}", self.release.notes or "—"
+                self, f"WinDiskCleaner {self.release.version}", self.release.notes or "—"
             )
 
     def install_update(self) -> None:
@@ -422,9 +423,9 @@ class MainWindow(QMainWindow):
         if not (updates.can_self_update() and release.exe_url and release.sha_url):
             QDesktopServices.openUrl(QUrl(release.page))
             return
-        if not confirm(self, "DiskDiet", tr("upd.confirm", version=release.version)):
+        if not confirm(self, "WinDiskCleaner", tr("upd.confirm", version=release.version)):
             return
-        target = os.path.join(os.path.dirname(sys.executable), "DiskDiet.new.exe")
+        target = os.path.join(os.path.dirname(sys.executable), "WinDiskCleaner.new.exe")
         self.banner_text.setText(tr("upd.downloading"))
         self.install_button.setEnabled(False)
 
@@ -461,7 +462,7 @@ class MainWindow(QMainWindow):
             lines.append(tr("close.permanent", size=fmt_size(s.permanent)))
         if s.moved:
             lines.append(tr("close.moved", size=fmt_size(s.moved)))
-        box = QMessageBox(QMessageBox.Icon.Information, "DiskDiet", "\n\n".join(lines),
+        box = QMessageBox(QMessageBox.Icon.Information, "WinDiskCleaner", "\n\n".join(lines),
                           QMessageBox.StandardButton.NoButton, self)
         role = QMessageBox.ButtonRole
         empty = open_bin = None
@@ -480,8 +481,11 @@ class MainWindow(QMainWindow):
 def run() -> int:
     app = QApplication(sys.argv)
     app.setWindowIcon(app_icon())
+    moved = settings.migrate_old_home()
     setup_log()
-    logger.info("start: DiskDiet %s, admin=%s, packaged=%s", __version__, system.is_admin(),
+    if moved:
+        logger.info("data folder moved from %s (former name)", moved)
+    logger.info("start: WinDiskCleaner %s, admin=%s, packaged=%s", __version__, system.is_admin(),
                 updates.can_self_update())
     values = settings.load()
     if values["language"] != "auto":

@@ -2,9 +2,9 @@ import os
 
 import pytest
 
-from diskdiet import vhdx
-from diskdiet.duplicates import HEAD, find_duplicates
-from diskdiet.scanner import FileInfo
+from windiskcleaner import vhdx
+from windiskcleaner.duplicates import HEAD, find_duplicates
+from windiskcleaner.scanner import FileInfo
 
 
 def info(path: str) -> FileInfo:

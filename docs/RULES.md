@@ -1,6 +1,6 @@
 # Adding a cleanup rule
 
-A rule is one entry in `RULES` in [`src/diskdiet/rules.py`](../src/diskdiet/rules.py). No
+A rule is one entry in `RULES` in [`src/windiskcleaner/rules.py`](../src/windiskcleaner/rules.py). No
 other code changes are needed: the scanner sizes the folder, the advisor turns it into a
 recommendation, the UI shows it.
 

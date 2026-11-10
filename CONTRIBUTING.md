@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. DiskDiet deletes files on other people's computers, so the bar for
+Thanks for helping. WinDiskCleaner deletes files on other people's computers, so the bar for
 "safe" is high and the code is kept small on purpose.
 
 ## Setup
@@ -9,7 +9,7 @@ Thanks for helping. DiskDiet deletes files on other people's computers, so the b
 uv sync
 uv run pytest
 uv run ruff check
-uv run python -m diskdiet
+uv run python -m windiskcleaner
 ```
 
 ## What is welcome
@@ -17,7 +17,7 @@ uv run python -m diskdiet
 - **New cleanup rules** — the easiest and most useful contribution. See
   [docs/RULES.md](docs/RULES.md).
 - Fixes for wrong advice, with the program and version where you saw it.
-- Translations of existing strings (`src/diskdiet/strings.py`, `rules.py`).
+- Translations of existing strings (`src/windiskcleaner/strings.py`, `rules.py`).
 
 Please open an issue before larger changes (new tabs, new kinds of action).
 

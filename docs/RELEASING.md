@@ -19,9 +19,9 @@ A release is a git tag. GitHub Actions does the rest.
 `.github/workflows/release.yml` then:
 
 - fails if the tag does not match the version in `pyproject.toml`;
-- runs lint and tests, builds `DiskDiet-X.Y.Z.exe`;
+- runs lint and tests, builds `WinDiskCleaner-X.Y.Z.exe`;
 - signs it, if signing is configured (below);
-- writes `DiskDiet-X.Y.Z.exe.sha256` and a GitHub build provenance attestation;
+- writes `WinDiskCleaner-X.Y.Z.exe.sha256` and a GitHub build provenance attestation;
 - publishes the GitHub Release with the notes taken from the `CHANGELOG.md` section.
 
 If the workflow fails, fix the cause, delete the tag (`git push origin :vX.Y.Z`,
@@ -35,7 +35,7 @@ be unsafe is fixed in a patch release straight away.
 ## Verifying a download
 
 ```
-gh attestation verify DiskDiet-X.Y.Z.exe --repo <owner>/diskdiet
+gh attestation verify WinDiskCleaner-X.Y.Z.exe --repo <owner>/windiskcleaner
 ```
 
 proves the file was built by this repository's workflow from the tagged commit.

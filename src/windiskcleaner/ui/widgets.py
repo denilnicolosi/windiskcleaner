@@ -15,9 +15,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet.log import logger
-from diskdiet.scanner import ScanCancelled
-from diskdiet.strings import tr
+from windiskcleaner.log import logger
+from windiskcleaner.scanner import ScanCancelled
+from windiskcleaner.strings import tr
 
 PALETTE = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
            "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#86bcb6"]

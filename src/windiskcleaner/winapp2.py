@@ -1,6 +1,6 @@
 """Community cleaning rules in the winapp2.ini format (CCleaner / BleachBit). Read-only.
 
-The user imports a winapp2.ini they downloaded (Settings → Exclusions tab); DiskDiet
+The user imports a winapp2.ini they downloaded (Settings → Exclusions tab); WinDiskCleaner
 never downloads it. Its entries are not checked like the catalogue, so they only become
 suggestions for the guided check, one folder at a time, never a one-click cleanup.
 
@@ -15,7 +15,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from diskdiet import rules, settings
+from windiskcleaner import rules, settings
 
 FILE_NAME = "winapp2.ini"
 WHOLE_FOLDER = {"*", "*.*"}
@@ -40,7 +40,7 @@ def parse(text: str) -> list[Entry]:
         if name is None:
             return
         if any(k in ("excludekey", "warning") for k, _v in keys):
-            return  # needs care DiskDiet cannot give it
+            return  # needs care WinDiskCleaner cannot give it
         folders = []
         for k, value in keys:
             if not k.startswith("filekey"):
@@ -83,7 +83,7 @@ def _variables() -> dict[str, str]:
 
 def expand(folder: str, variables: dict[str, str] | None = None) -> str | None:
     """`folder` with its %Variables% replaced; None if one is unknown (e.g. %WinDir%,
-    %ProgramFiles%: places DiskDiet never cleans)."""
+    %ProgramFiles%: places WinDiskCleaner never cleans)."""
     variables = _variables() if variables is None else variables
     missing = False
 

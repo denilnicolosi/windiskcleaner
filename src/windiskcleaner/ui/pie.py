@@ -8,7 +8,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QToolTip, QWidget
 
-from diskdiet.strings import fmt_size
+from windiskcleaner.strings import fmt_size
 
 LABEL_MIN = 0.03  # slices smaller than this get no label (the tooltip still works)
 LABEL_WIDTH = 150

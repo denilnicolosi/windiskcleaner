@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from diskdiet import strings
+from windiskcleaner import strings
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -15,7 +15,7 @@ def english():
 @pytest.fixture(autouse=True)
 def private_home(tmp_path_factory, monkeypatch):
     """Settings and the deletion log go to a throwaway folder, never the user's."""
-    monkeypatch.setenv("DISKDIET_HOME", str(tmp_path_factory.mktemp("home")))
+    monkeypatch.setenv("WINDISKCLEANER_HOME", str(tmp_path_factory.mktemp("home")))
 
 
 @pytest.fixture

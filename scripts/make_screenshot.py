@@ -8,14 +8,14 @@ import os
 import sys
 import tempfile
 
-os.environ["DISKDIET_HOME"] = tempfile.mkdtemp()  # do not read or write real settings
+os.environ["WINDISKCLEANER_HOME"] = tempfile.mkdtemp()  # do not read or write real settings
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from diskdiet import strings  # noqa: E402
-from diskdiet.scanner import Node, ScanResult  # noqa: E402
-from diskdiet.system import Volume  # noqa: E402
-from diskdiet.ui.main_window import MainWindow  # noqa: E402
+from windiskcleaner import strings  # noqa: E402
+from windiskcleaner.scanner import Node, ScanResult  # noqa: E402
+from windiskcleaner.system import Volume  # noqa: E402
+from windiskcleaner.ui.main_window import MainWindow  # noqa: E402
 
 GB = 1 << 30
 SAMPLE = [("Users", 212, 1_450_000), ("Windows", 48, 220_000), ("Program Files", 41, 154_000),
