@@ -29,6 +29,7 @@ from diskdiet import (
     __version__,
     actions,
     advisor,
+    games,
     history,
     report,
     rules,
@@ -42,7 +43,7 @@ from diskdiet.log import setup as setup_log
 from diskdiet.scanner import scan
 from diskdiet.strings import fmt_size, tr
 from diskdiet.ui.icon import app_icon
-from diskdiet.ui.more_tabs import CompressTab, GrowthTab, TypesTab
+from diskdiet.ui.more_tabs import CompressTab, GamesTab, GrowthTab, TypesTab
 from diskdiet.ui.settings_dialog import SettingsDialog
 from diskdiet.ui.tabs import (
     Duplicates,
@@ -130,6 +131,7 @@ class MainWindow(QMainWindow):
         self.compress_tab = CompressTab(self)
         self.growth_tab = GrowthTab(self)
         self.types_tab = TypesTab(self)
+        self.games_tab = GamesTab(self)
         self.journal_tab = JournalTab(self)
 
         archive = QWidget()
@@ -141,7 +143,8 @@ class MainWindow(QMainWindow):
         for name, widget in (
             ("overview", self.overview), ("growth", self.growth_tab), ("advice", self.advice),
             ("big", self.big.holder), ("types", self.types_tab),
-            ("old", self.old.holder), ("programs", self.program_tab), ("system", self.system_tab),
+            ("old", self.old.holder), ("programs", self.program_tab), ("games", self.games_tab),
+            ("system", self.system_tab),
             ("archive", archive), ("compress", self.compress_tab), ("dups", self.dups),
             ("log", self.journal_tab),
         ):
@@ -274,6 +277,9 @@ class MainWindow(QMainWindow):
         self.program_tab.load(programs)
         self.compress_tab.load(result)
         self.types_tab.load(result.ext_sizes)
+        found = games.installed_games()
+        self.games_tab.load(found)
+        self.tabs.setTabVisible(self.tabs.indexOf(self.games_tab), bool(found))
         try:
             before = history.previous(root.path)
             self.growth_tab.load(before, history.save(result))

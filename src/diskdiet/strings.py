@@ -71,6 +71,24 @@ S: dict[str, tuple[str, str]] = {
     "tab.archive": ("Archive", "Archivio"),
     "tab.dups": ("Duplicates", "Duplicati"),
     "tab.compress": ("Compress", "Comprimi"),
+    "tab.games": ("Games", "Giochi"),
+    "games.hint": (
+        "Games installed with Steam or Epic, as the launchers record them. Uninstall goes "
+        "through the launcher. To move a game to another drive use the launcher's own "
+        "option (Steam: Properties → Installed files → Move install folder). Compress "
+        "often saves a lot on games.",
+        "Giochi installati con Steam o Epic, come li registrano i launcher. La "
+        "disinstallazione passa dal launcher. Per spostare un gioco su un altro disco usa "
+        "l'opzione del launcher (Steam: Proprietà → File installati → Sposta cartella di "
+        "installazione). Comprimere spesso fa risparmiare molto sui giochi.",
+    ),
+    "games.launcher": ("Launcher", "Launcher"),
+    "games.played": ("Last played", "Ultima partita"),
+    "games.never": ("never / unknown", "mai / sconosciuta"),
+    "games.confirm": (
+        "Ask {launcher} to uninstall “{name}”? {launcher} will ask you to confirm.",
+        "Chiedere a {launcher} di disinstallare “{name}”? {launcher} ti chiederà conferma.",
+    ),
     "tab.types": ("File types", "Tipi di file"),
     "col.ext": ("Extension", "Estensione"),
     "types.hint": (

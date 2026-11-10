@@ -442,6 +442,18 @@ def uninstall(command: str) -> None:
         launch("ms-settings:appsfeatures")
 
 
+def uninstall_game(launcher: str, app_id: str) -> None:
+    """Ask the game's own launcher to uninstall it; the launcher asks the user to confirm."""
+    if launcher == "Steam" and app_id.isdigit():
+        uri = f"steam://uninstall/{app_id}"
+    elif launcher == "Epic":
+        uri = "com.epicgames.launcher://store/library"  # uninstall from the library there
+    else:
+        raise OSError("no uninstaller known for this game")
+    logger.info("uninstall game: %s", uri)
+    os.startfile(uri)
+
+
 def relaunch_elevated() -> bool:
     """Start a second DiskDiet as administrator (UAC prompt). True if it was started."""
     import ctypes

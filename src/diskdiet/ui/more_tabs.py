@@ -1,8 +1,9 @@
-"""Compress tab (NTFS compression), What changed (since the last scan), File types."""
+"""Compress tab (NTFS compression), What changed (since the last scan), File types, Games."""
 
 from __future__ import annotations
 
 import os
+from datetime import datetime
 
 from PySide6.QtWidgets import (
     QComboBox,
@@ -260,3 +261,67 @@ def _fill(table, rows: list[tuple[list[str], int]], total: int) -> None:
             cell.setTextAlignment(RIGHT)
             table.setItem(i, col, cell)
     table.setSortingEnabled(True)
+
+
+class GamesTab(QWidget):
+    """Steam and Epic games by size and last time played (games.py)."""
+
+    def __init__(self, win):
+        super().__init__()
+        self.win = win
+        hint = QLabel(tr("games.hint"))
+        hint.setWordWrap(True)
+        self.table = make_table([tr("col.name"), tr("games.launcher"), tr("col.size"),
+                                 tr("games.played"), tr("col.path")])
+        self.table.itemSelectionChanged.connect(self.selection_changed)
+        self.open = QPushButton(tr("rec.open"))
+        self.open.clicked.connect(lambda: actions.open_in_explorer(self.selected().path))
+        self.uninstall = QPushButton(tr("prog.uninstall"))
+        self.uninstall.clicked.connect(self.uninstall_selected)
+        self.compress = QPushButton(tr("cmp.compress"))
+        self.compress.clicked.connect(lambda: self.win.compress_tab.add(self.selected().path))
+        buttons = QHBoxLayout()
+        for button in (self.open, self.uninstall, self.compress):
+            buttons.addWidget(button)
+        buttons.addStretch(1)
+        layout = QVBoxLayout(self)
+        layout.addWidget(hint)
+        layout.addWidget(with_filter(self.table, size_col=2), 1)
+        layout.addLayout(buttons)
+        self.selection_changed()
+
+    def load(self, found) -> None:
+        self.table.setSortingEnabled(False)
+        self.table.setRowCount(len(found))
+        for i, game in enumerate(found):
+            name = QTableWidgetItem(game.name)
+            name.setData(ROLE, game)
+            self.table.setItem(i, 0, name)
+            self.table.setItem(i, 1, QTableWidgetItem(game.launcher))
+            size = SortItem(fmt_size(game.size) if game.size else "", game.size)
+            size.setTextAlignment(RIGHT)
+            self.table.setItem(i, 2, size)
+            played = (datetime.fromtimestamp(game.last_played).strftime("%Y-%m-%d")
+                      if game.last_played else tr("games.never"))
+            self.table.setItem(i, 3, SortItem(played, game.last_played))
+            self.table.setItem(i, 4, QTableWidgetItem(game.path))
+        self.table.setSortingEnabled(True)
+        self.selection_changed()
+
+    def selected(self):
+        rows = self.table.selectionModel().selectedRows()
+        return self.table.item(rows[0].row(), 0).data(ROLE) if rows else None
+
+    def selection_changed(self) -> None:
+        for button in (self.open, self.uninstall, self.compress):
+            button.setEnabled(self.selected() is not None)
+
+    def uninstall_selected(self) -> None:
+        game = self.selected()
+        if not game or not confirm(self, tr("prog.uninstall"),
+                                   tr("games.confirm", name=game.name, launcher=game.launcher)):
+            return
+        try:
+            actions.uninstall_game(game.launcher, game.app_id)
+        except OSError as err:
+            QMessageBox.warning(self, tr("prog.uninstall"), tr("ui.failed", err=err))

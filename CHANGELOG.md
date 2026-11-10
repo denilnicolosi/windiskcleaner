@@ -38,6 +38,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   folders, past JetBrains IDE versions); the newest is never proposed.
 - Guidance for Telegram and WhatsApp media, OneDrive files kept on this PC (free up space,
   Storage Sense), the Delivery Optimization cache and Windows' reserved storage.
+- Games tab (shown when Steam or Epic games are installed): size and last time played,
+  uninstall through the launcher, open, compress.
 - Treemap view in the Overview (button next to the path): every subfolder as a box sized
   by its space, with its own subfolders inside; click to enter, right-click for actions.
 
