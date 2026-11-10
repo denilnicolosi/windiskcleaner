@@ -224,3 +224,40 @@ def test_leftovers_of_a_removed_program(tmp_path, make, monkeypatch):
     assert rec.paths == [str(tmp_path / "Roaming" / "JetBrains" / "PyCharm2025.1")]
     broad = Program("Tool", "Tool", 0, "", "", str(tmp_path / "Local"))  # bad InstallLocation
     assert advisor.leftovers(broad, installed) is None
+
+
+def test_app_caches_found_by_layout_not_by_name(tmp_path, make, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Local"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    make("Roaming/SomeChat/Cache/Cache_Data/f_0001", 100)
+    make("Roaming/SomeChat/Code Cache/js/x", 50)
+    make("Roaming/SomeChat/IndexedDB/chats.db", 999)  # the app's own data: never proposed
+    make("Roaming/Notes/Cache/notes.db", 999)  # a plain "Cache" folder alone is not enough
+    rec = {r.id: r for r in advisor.build(scan(str(tmp_path)))}["app_caches"]
+    chat = tmp_path / "Roaming" / "SomeChat"
+    assert sorted(rec.paths) == sorted([str(chat / "Cache"), str(chat / "Code Cache")])
+    assert (rec.size, rec.safety, rec.action) == (150, Safety.SAFE, Action.DELETE)
+
+
+def test_old_versions_keep_the_newest(tmp_path, make, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Local"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    make("Local/Postman/Update.exe", 1)
+    make("Local/Postman/app-9.29.0/Postman.exe", 10)
+    make("Local/Postman/app-9.31.0/Postman.exe", 10)
+    make("Local/Postman/app-10.2.0/Postman.exe", 10)  # 10 > 9: compared as numbers
+    make("Local/Gemini/Gemini.exe", 1)  # launcher named after the folder
+    make("Local/Gemini/app-1.16.0/x.exe", 10)
+    make("Local/Gemini/app-1.18.0/x.exe", 10)
+    make("Local/NoUpdater/app-1.0.0/x.exe", 10)  # not a Squirrel app
+    make("Local/NoUpdater/app-2.0.0/x.exe", 10)
+    make("Roaming/JetBrains/PyCharm2025.1/options.xml", 5)
+    make("Roaming/JetBrains/PyCharm2025.2/options.xml", 5)
+    make("Roaming/JetBrains/IntelliJIdea2024.3/options.xml", 5)  # only one of its kind
+    rec = {r.id: r for r in advisor.build(scan(str(tmp_path)))}["old_versions"]
+    assert sorted(rec.paths) == sorted([
+        str(tmp_path / "Local" / "Postman" / "app-9.29.0"),
+        str(tmp_path / "Local" / "Postman" / "app-9.31.0"),
+        str(tmp_path / "Local" / "Gemini" / "app-1.16.0"),
+        str(tmp_path / "Roaming" / "JetBrains" / "PyCharm2025.1"),
+    ])

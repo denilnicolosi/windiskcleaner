@@ -296,6 +296,124 @@ def _orphans(result: ScanResult, programs: Iterable, covered: list[str]) -> Reco
     )
 
 
+def _appdata_nodes(result: ScanResult, levels: int):
+    """Nodes of the scan tree up to `levels` below %LOCALAPPDATA% and %APPDATA%."""
+    for var in ("LOCALAPPDATA", "APPDATA"):
+        base = result.find(os.environ.get(var, "") or "\0")
+        stack = [(base, 0)] if base else []
+        while stack:
+            node, depth = stack.pop()
+            yield node
+            if depth < levels:
+                stack += [(child, depth + 1) for child in node.children]
+
+
+def _subdirs(path: str) -> list[str]:
+    """Names of the folders directly in `path`, read from disk: when the whole drive is
+    scanned, the tree keeps only six levels and AppData sits at level four."""
+    try:
+        with os.scandir(path) as entries:
+            return [e.name for e in entries if e.is_dir(follow_symlinks=False)]
+    except OSError:
+        return []
+
+
+# Inside a Chromium-style profile (Electron apps, WebView2): caches only, never site data.
+_APP_CACHES = ("Cache", "Code Cache", "GPUCache", "DawnCache", "DawnGraphiteCache",
+               "DawnWebGPUCache", "GrShaderCache", "GraphiteDawnCache", "ShaderCache",
+               r"Service Worker\CacheStorage", r"Service Worker\ScriptCache",
+               r"Crashpad\reports")
+
+
+def _app_caches(result: ScanResult, covered: list[str]) -> Recommendation | None:
+    """Web caches of Electron and WebView2 apps (Discord, WhatsApp, VS Code forks, new
+    Outlook…), recognised by their layout rather than by name: a folder holding both
+    "Code Cache" and "Cache" or "GPUCache"."""
+    found = []
+    for node in _appdata_nodes(result, 3):
+        names = {name.lower() for name in _subdirs(node.path)}
+        if "code cache" not in names or not names & {"cache", "gpucache"}:
+            continue
+        for sub in _APP_CACHES:
+            path = os.path.join(node.path, sub)
+            k = key(path)
+            if os.path.isdir(path) and not any(c == k or under(k, c) or under(c, k)
+                                               for c in covered):
+                found.append(path)
+    sizes = {p: measure(p, result) for p in found}
+    found = [p for p in found if sizes[p]]
+    if not found:
+        return None
+    found.sort(key=lambda p: -sizes[p])
+    return Recommendation(
+        "app_caches", "apps", Safety.SAFE, Action.DELETE,
+        pick(("Caches of desktop apps (Electron, WebView2)",
+              "Cache delle app desktop (Electron, WebView2)")),
+        pick((
+            "Many desktop apps are web pages in a frame (Discord, WhatsApp, Teams, Postman, "
+            "VS Code forks…) and keep the same caches as a browser. Rebuilt at the next "
+            "start; chats, logins and settings are not touched. Close those apps first: "
+            "files in use are skipped.",
+            "Molte app desktop sono pagine web in una cornice (Discord, WhatsApp, Teams, "
+            "Postman, fork di VS Code…) e tengono le stesse cache di un browser. Si ricreano "
+            "al prossimo avvio; chat, accessi e impostazioni non vengono toccati. Chiudi prima "
+            "quelle app: i file in uso vengono saltati.",
+        )),
+        sum(sizes[p] for p in found), found, question=pick(question("app_caches")), expand=True,
+    )
+
+
+_SQUIRREL = re.compile(r"^app-(\d+(?:\.\d+)*)$", re.IGNORECASE)
+_JETBRAINS = re.compile(r"^([A-Za-z]+?)(\d{4})\.(\d+)$")
+
+
+def _old_versions(result: ScanResult) -> Recommendation | None:
+    """Older side-by-side versions a program keeps after updating itself: Squirrel apps
+    (`app-1.2.3` folders next to Update.exe) and JetBrains IDE folders of past years."""
+    old = []
+    for node in _appdata_nodes(result, 2):
+        groups: dict[str, list[tuple[tuple[int, ...], str]]] = {}
+        # Squirrel keeps Update.exe beside the versions; some apps a launcher named after
+        # the folder (Gemini\Gemini.exe) instead.
+        launcher = any(os.path.isfile(os.path.join(node.path, exe))
+                       for exe in ("Update.exe", node.name + ".exe"))
+        if launcher:
+            for name in _subdirs(node.path):
+                match = _SQUIRREL.match(name)
+                if match:
+                    version = tuple(int(n) for n in match[1].split("."))
+                    groups.setdefault("squirrel", []).append(
+                        (version, os.path.join(node.path, name)))
+        if node.name.lower() == "jetbrains":
+            for name in _subdirs(node.path):
+                match = _JETBRAINS.match(name)
+                if match:
+                    version = (int(match[2]), int(match[3]))
+                    groups.setdefault(match[1].lower(), []).append(
+                        (version, os.path.join(node.path, name)))
+        for versions in groups.values():
+            versions.sort()
+            old += [path for _v, path in versions[:-1]]  # the newest stays
+    if not old:
+        return None
+    sizes = {p: measure(p, result) for p in old}
+    old.sort(key=lambda p: -sizes[p])
+    return Recommendation(
+        "old_versions", "apps", Safety.CAUTION, Action.REVIEW,
+        pick(("Old versions kept after updates", "Versioni vecchie tenute dopo gli aggiornamenti")),
+        pick((
+            "Some programs install each update next to the previous one (Squirrel apps such "
+            "as Discord or Postman) or leave the settings of past IDE versions (JetBrains). "
+            "The newest version is never proposed. Close the program first.",
+            "Alcuni programmi installano ogni aggiornamento accanto al precedente (app "
+            "Squirrel come Discord o Postman) o lasciano le impostazioni delle versioni "
+            "passate dell'IDE (JetBrains). La versione più recente non viene mai proposta. "
+            "Chiudi prima il programma.",
+        )),
+        sum(sizes.values()), old, question=pick(question("old_versions")),
+    )
+
+
 # Words that say nothing about which program a folder belongs to.
 _FILLER = {"x64", "x86", "64bit", "32bit", "bit", "version", "for", "windows", "the", "and",
            "edition", "update", "setup", "installer", "portable", "beta", "preview"}
@@ -406,7 +524,8 @@ def build(
     recs = [_from_rule(rule, result) for rule in rules]
     covered = [key(p) for r in recs if r for p in r.paths]
     recs += _archive(result, now, old_days)
-    recs += [_idle_projects(result, now), _orphans(result, programs, covered)]
+    recs += [_idle_projects(result, now), _orphans(result, programs, covered),
+             _app_caches(result, covered), _old_versions(result)]
     keys = [key(p) for p in exclude]
     recs = [_without(r, keys, result) for r in recs if r]
     return sorted((r for r in recs if r), key=lambda r: -r.size)

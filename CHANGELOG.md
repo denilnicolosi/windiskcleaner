@@ -32,6 +32,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Filter box on the file and program tables: words, and sizes such as `>500mb`; the file
   tables now search every tracked file, not only the first 200 shown.
 - Right-click a folder → “Scan this folder again” to refresh it without a full scan.
+- Caches of Electron and WebView2 apps (WhatsApp, Discord, Postman, VS Code forks…),
+  recognised by their folder layout; only caches, never the apps' own data.
+- Old versions that self-updating programs keep beside the new one (Squirrel `app-*`
+  folders, past JetBrains IDE versions); the newest is never proposed.
 - Treemap view in the Overview (button next to the path): every subfolder as a box sized
   by its space, with its own subfolders inside; click to enter, right-click for actions.
 
