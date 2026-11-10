@@ -82,6 +82,25 @@ def test_never_touch_list(monkeypatch):
     assert not any(actions.is_protected(p) for p in free)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="junctions")
+def test_profile_under_another_name_is_not_someone_elses(monkeypatch, tmp_path, make):
+    import _winapi
+
+    me = tmp_path / "Users" / "me"
+    item = make("Users/me/AppData/Local/Temp/x.tmp", 1)
+    make("Users/other/doc.txt", 1)
+    alias = tmp_path / "Users" / "ME~1"  # stands in for an 8.3 short name
+    try:
+        _winapi.CreateJunction(str(me), str(alias))
+    except OSError:
+        pytest.skip("cannot create junctions here")
+    monkeypatch.setenv("USERPROFILE", str(me))
+    assert not actions.is_protected(item)
+    assert not actions.is_protected(str(alias / "AppData" / "Local" / "Temp" / "x.tmp"))
+    assert actions.is_protected(str(alias))  # the profile itself, by its other name
+    assert actions.is_protected(str(tmp_path / "Users" / "other" / "doc.txt"))
+
+
 def test_protected_items_are_refused_even_inside_the_root(monkeypatch, tmp_path, make):
     path = make("profile/file.bin", 5)
     monkeypatch.setenv("USERPROFILE", path)  # pretend this file is the profile itself

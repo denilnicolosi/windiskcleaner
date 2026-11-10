@@ -61,8 +61,11 @@ def is_protected(path: str) -> bool:
     profile = key(env.get("USERPROFILE", os.path.expanduser("~")))
     if k == profile:
         return True
-    users = os.path.dirname(profile)
-    return under(k, users) and not under(k, profile)  # someone else's profile
+    if not under(k, os.path.dirname(profile)) or under(k, profile):
+        return False
+    # Under C:\Users but outside the profile: someone else's profile, or this one under another
+    # name (8.3 short name like RUNNER~1 in %TEMP%, junction). Only this branch pays for realpath.
+    return not under(key(os.path.realpath(path)), key(os.path.realpath(profile)))
 
 
 def preview(targets: Iterable[str]) -> list[str]:
