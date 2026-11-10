@@ -71,6 +71,27 @@ S: dict[str, tuple[str, str]] = {
     "tab.archive": ("Archive", "Archivio"),
     "tab.dups": ("Duplicates", "Duplicati"),
     "tab.compress": ("Compress", "Comprimi"),
+    "tab.types": ("File types", "Tipi di file"),
+    "col.ext": ("Extension", "Estensione"),
+    "types.hint": (
+        "Space taken by each kind of file in the scanned folder, then by each extension.",
+        "Spazio occupato da ogni tipo di file nella cartella analizzata, poi per estensione.",
+    ),
+    "types.none": ("(no extension)", "(senza estensione)"),
+    "kind.file.video": ("Video", "Video"),
+    "kind.file.audio": ("Audio", "Audio"),
+    "kind.file.image": ("Images", "Immagini"),
+    "kind.file.archive": ("Archives", "Archivi"),
+    "kind.file.disk": ("Disk images and virtual disks", "Immagini disco e dischi virtuali"),
+    "kind.file.program": ("Programs and libraries", "Programmi e librerie"),
+    "kind.file.document": ("Documents", "Documenti"),
+    "kind.file.data": ("Databases, models and data", "Database, modelli e dati"),
+    "kind.file.code": ("Source code", "Codice sorgente"),
+    "kind.file.other": ("Other", "Altro"),
+    "ui.filter": (
+        "Filter: words to find, and/or a size like >500mb or <2gb",
+        "Filtro: parole da cercare e/o una dimensione come >500mb o <2gb",
+    ),
     "tab.growth": ("What changed", "Cosa è cambiato"),
     "grow.none": (
         "Nothing to compare yet: the next scan of this folder will show what grew or shrank "
@@ -126,6 +147,7 @@ S: dict[str, tuple[str, str]] = {
     "cmp.undone": ("Decompressed: {size} more on disk.",
                    "Decompressa: {size} in più su disco."),
     "file.compress": ("Compress (NTFS)…", "Comprimi (NTFS)…"),
+    "file.rescan": ("Scan this folder again", "Analizza di nuovo questa cartella"),
     "log.mode.compressed": ("Compressed in place", "Compresso sul posto"),
     # overview
     "ui.up": ("⬆ Up", "⬆ Su"),

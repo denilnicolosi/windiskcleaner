@@ -31,10 +31,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, advisor, journal, system, vhdx
+from diskdiet import actions, advisor, journal, rules, system, vhdx
 from diskdiet.duplicates import find_duplicates
 from diskdiet.log import logger
 from diskdiet.rules import RESTORE_POINT, Action, Safety
+from diskdiet.scanner import scan
 from diskdiet.strings import fmt_size, pick, tr
 from diskdiet.ui.pie import PieWidget
 from diskdiet.ui.review_dialog import ReviewDialog
@@ -52,7 +53,9 @@ from diskdiet.ui.widgets import (
     SortItem,
     confirm,
     make_table,
+    matches,
     swatch,
+    with_filter,
 )
 
 CHECKED, UNCHECKED = Qt.CheckState.Checked, Qt.CheckState.Unchecked
@@ -163,9 +166,34 @@ class Overview(QWidget):
         if actions.is_protected(node.path):
             delete.setEnabled(False)
             delete.setText(tr("file.protected"))
+        menu.addAction(tr("file.rescan"), lambda: self.rescan(node))
         menu.addAction(tr("file.compress"), lambda: self.win.compress_tab.add(node.path))
         menu.addAction(tr("file.exclude"), lambda: self.win.add_exclusion(node.path))
         menu.exec(global_pos)
+
+    def rescan(self, node) -> None:
+        """Measure one folder again (after cleaning it elsewhere) without a full scan."""
+        parent = self.stack[-1]
+        if node not in parent.children:
+            return
+        depth = max(0, 6 - len(self.stack))  # keep the tree as deep as a full scan
+
+        def job(_progress, cancelled):
+            return scan(node.path, watch_paths=rules.watch_paths(),
+                        watch_names=advisor.REGENERABLE, max_depth=depth, cancelled=cancelled)
+
+        def finished(result):
+            if node not in parent.children:
+                return
+            fresh = result.root
+            parent.children[parent.children.index(node)] = fresh
+            for ancestor in self.stack:
+                ancestor.size += fresh.size - node.size
+                ancestor.files += fresh.files - node.files
+            logger.info("rescan %s: %d -> %d bytes", node.path, node.size, fresh.size)
+            self.refresh()
+
+        self.win.run(job, finished)
 
     def delete(self, node) -> None:
         text = tr("file.trash_confirm", path=node.path, size=fmt_size(node.size))
@@ -459,8 +487,19 @@ class FileTable(QTableWidget):
         self.horizontalHeader().setStretchLastSection(True)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.menu)
+        self.files, self.query = [], ""
+        self.holder = with_filter(self, on_query=self.set_query)  # what the tab shows
 
     def load(self, files) -> None:
+        """All matching files, biggest first; the first MAX_ROWS that pass the filter show."""
+        self.files = files
+        self.set_query(self.query)
+
+    def set_query(self, query: str) -> None:
+        self.query = query
+        day = lambda f: datetime.fromtimestamp(f.mtime).strftime("%Y-%m-%d")  # noqa: E731
+        files = [f for f in self.files if matches(query, f"{f.path} {day(f)}", f.size)]
+        files = files[:MAX_ROWS]
         self.setSortingEnabled(False)
         self.setRowCount(len(files))
         for i, f in enumerate(files):
@@ -487,6 +526,7 @@ class FileTable(QTableWidget):
             return
         outcome = actions.delete([path], [path], source="files")
         if outcome.deleted:
+            self.files = [f for f in self.files if f.path != path]
             self.removeRow(row)
         self.win.show_report(outcome)
 
@@ -672,7 +712,7 @@ class ProgramsTab(QWidget):
         buttons.addStretch(1)
         layout = QVBoxLayout(self)
         layout.addWidget(hint)
-        layout.addWidget(self.table, 1)
+        layout.addWidget(with_filter(self.table, size_col=1), 1)
         layout.addLayout(buttons)
 
     def load(self, programs) -> None:

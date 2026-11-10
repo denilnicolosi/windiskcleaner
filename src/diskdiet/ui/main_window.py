@@ -42,7 +42,7 @@ from diskdiet.log import setup as setup_log
 from diskdiet.scanner import scan
 from diskdiet.strings import fmt_size, tr
 from diskdiet.ui.icon import app_icon
-from diskdiet.ui.more_tabs import CompressTab, GrowthTab
+from diskdiet.ui.more_tabs import CompressTab, GrowthTab, TypesTab
 from diskdiet.ui.settings_dialog import SettingsDialog
 from diskdiet.ui.tabs import (
     Duplicates,
@@ -129,6 +129,7 @@ class MainWindow(QMainWindow):
         self.dups = Duplicates(self)
         self.compress_tab = CompressTab(self)
         self.growth_tab = GrowthTab(self)
+        self.types_tab = TypesTab(self)
         self.journal_tab = JournalTab(self)
 
         archive = QWidget()
@@ -139,8 +140,8 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         for name, widget in (
             ("overview", self.overview), ("growth", self.growth_tab), ("advice", self.advice),
-            ("big", self.big),
-            ("old", self.old), ("programs", self.program_tab), ("system", self.system_tab),
+            ("big", self.big.holder), ("types", self.types_tab),
+            ("old", self.old.holder), ("programs", self.program_tab), ("system", self.system_tab),
             ("archive", archive), ("compress", self.compress_tab), ("dups", self.dups),
             ("log", self.journal_tab),
         ):
@@ -268,10 +269,11 @@ class MainWindow(QMainWindow):
         self.archive.load(recs)
         files = sorted(result.big_files, reverse=True)
         cutoff = time.time() - self.settings["old_days"] * advisor.DAY
-        self.big.load(files[:MAX_ROWS])
-        self.old.load([f for f in files if f.mtime < cutoff][:MAX_ROWS])
+        self.big.load(files)
+        self.old.load([f for f in files if f.mtime < cutoff])
         self.program_tab.load(programs)
         self.compress_tab.load(result)
+        self.types_tab.load(result.ext_sizes)
         try:
             before = history.previous(root.path)
             self.growth_tab.load(before, history.save(result))

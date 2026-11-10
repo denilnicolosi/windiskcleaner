@@ -44,7 +44,7 @@ def test_window_shows_a_scan(app, tmp_path, make, monkeypatch):
     assert window.big.rowCount() == 2
     assert window.advice.tree.topLevelItemCount() >= 2
     assert window.system_tab.recs.tree.topLevelItemCount() == 1
-    assert window.tabs.count() == 11
+    assert window.tabs.count() == 12
 
     window.overview.enter(window.overview.row_nodes[0])  # no sub-folders: stays put
     assert len(window.overview.stack) == 1
@@ -196,3 +196,34 @@ def test_every_string_key_used_in_the_code_exists():
                            ("kind", ("docker", "wsl", "other"))):
         assert all(f"{prefix}.{v}" in S for v in values)
     assert all(len(pair) == 2 and all(pair) for pair in S.values())
+
+
+def test_filter_words_and_sizes():
+    from diskdiet.ui.widgets import matches
+
+    assert matches("video mp4", r"C:\Users\me\Videos\video.mp4")
+    assert not matches("video avi", r"C:\Users\me\Videos\video.mp4")
+    assert matches(">500mb", "x", 600 << 20) and not matches(">500mb", "x", 400 << 20)
+    assert matches("<2gb", "x", 1 << 30) and not matches("<2g", "x", 3 << 30)
+    assert matches("", "anything")
+
+
+def test_file_kinds():
+    from diskdiet import advisor
+
+    assert advisor.kind_of(".MP4") == "video" and advisor.kind_of(".gguf") == "data"
+    assert advisor.kind_of(".xyz") == "other"
+
+
+def test_overview_rescan_updates_one_folder(app, tmp_path, make, monkeypatch):
+    window, result, _recs = scanned_window(tmp_path, make, monkeypatch)
+    node = next(n for n in result.root.children if n.name == "data")
+    before = result.root.size
+    make("data/new.bin", 1000)
+    window.overview.rescan(node)
+    for worker in list(window.workers):
+        worker.wait(5000)
+    app.processEvents()
+    assert result.root.size == before + 1000
+    assert node not in result.root.children  # replaced by the fresh measurement
+    window.close()

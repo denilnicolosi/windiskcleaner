@@ -1,4 +1,4 @@
-"""Compress tab (NTFS compression) and Growth tab (what changed since the last scan)."""
+"""Compress tab (NTFS compression), What changed (since the last scan), File types."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from diskdiet import actions, compress, history
+from diskdiet import actions, advisor, compress, history
 from diskdiet.strings import fmt_size, tr
-from diskdiet.ui.widgets import RIGHT, ROLE, SortItem, confirm, make_table
+from diskdiet.ui.widgets import RIGHT, ROLE, SortItem, confirm, make_table, with_filter
 
 
 class CompressTab(QWidget):
@@ -216,3 +216,47 @@ class GrowthTab(QWidget):
 
 def _signed(delta: int) -> str:
     return ("+" if delta >= 0 else "−") + fmt_size(abs(delta))
+
+
+class TypesTab(QWidget):
+    """Space by file extension and by kind (video, images, programs…), like WizTree."""
+
+    def __init__(self, win):
+        super().__init__()
+        self.win = win
+        self.kinds = make_table([tr("col.kind"), tr("col.size"), tr("col.share")])
+        self.kinds.setMaximumHeight(260)
+        self.exts = make_table([tr("col.ext"), tr("col.kind"), tr("col.size"), tr("col.share")])
+        hint = QLabel(tr("types.hint"))
+        hint.setWordWrap(True)
+        layout = QVBoxLayout(self)
+        layout.addWidget(hint)
+        layout.addWidget(self.kinds)
+        layout.addWidget(with_filter(self.exts, size_col=2), 1)
+
+    def load(self, ext_sizes: dict[str, int]) -> None:
+        total = sum(ext_sizes.values()) or 1
+        by_kind: dict[str, int] = {}
+        for ext, size in ext_sizes.items():
+            kind = advisor.kind_of(ext)
+            by_kind[kind] = by_kind.get(kind, 0) + size
+        _fill(self.kinds, [([tr(f"kind.file.{k}")], s) for k, s in by_kind.items()], total)
+        rows = [([ext or tr("types.none"), tr(f"kind.file.{advisor.kind_of(ext)}")], s)
+                for ext, s in ext_sizes.items() if s]
+        _fill(self.exts, rows, total)
+
+
+def _fill(table, rows: list[tuple[list[str], int]], total: int) -> None:
+    """Text columns, then size and share, biggest first."""
+    rows.sort(key=lambda r: -r[1])
+    table.setSortingEnabled(False)
+    table.setRowCount(len(rows))
+    for i, (texts, size) in enumerate(rows):
+        for col, text in enumerate(texts):
+            table.setItem(i, col, QTableWidgetItem(text))
+        for col, (text, value) in enumerate(((fmt_size(size), size),
+                                             (f"{size / total:.1%}", size)), len(texts)):
+            cell = SortItem(text, value)
+            cell.setTextAlignment(RIGHT)
+            table.setItem(i, col, cell)
+    table.setSortingEnabled(True)

@@ -48,6 +48,26 @@ VIDEO = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".wav"}
 VM_DISK = {".vmdk", ".vdi", ".vhd", ".iso", ".ova"}
 PACKED = {".zip", ".rar", ".7z"}
 INSTALLER = {".exe", ".msi", ".iso"}
+# Broad kind of a file by extension, for the "File types" view.
+KINDS: dict[str, set[str]] = {
+    "video": {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".m4v", ".flv", ".ts", ".mts"},
+    "audio": {".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".wma", ".opus"},
+    "image": {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff", ".webp", ".heic",
+              ".raw", ".cr2", ".nef", ".arw", ".dng", ".psd", ".svg"},
+    "archive": {".zip", ".rar", ".7z", ".gz", ".tar", ".xz", ".bz2", ".zst", ".cab", ".tgz"},
+    "disk": {".iso", ".vhdx", ".vhd", ".vmdk", ".vdi", ".img", ".ova", ".qcow2", ".wim"},
+    "program": {".exe", ".dll", ".sys", ".msi", ".so", ".pyd", ".node", ".jar", ".apk"},
+    "document": {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".txt",
+                 ".rtf", ".epub", ".md", ".csv"},
+    "data": {".db", ".sqlite", ".mdb", ".accdb", ".ldb", ".pst", ".ost", ".bak", ".log",
+             ".dat", ".bin", ".pak", ".gguf", ".safetensors", ".ckpt", ".pt", ".onnx"},
+    "code": {".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".cs", ".go", ".rs", ".json",
+             ".xml", ".html", ".css", ".pyc", ".class", ".map"},
+}
+
+
+def kind_of(ext: str) -> str:
+    return next((k for k, exts in KINDS.items() if ext.lower() in exts), "other")
 # AppData folders that are Windows' own or hold many unrelated programs.
 NOT_ORPHANS = {"microsoft", "packages", "programs", "temp", "google", "windowsapps", "npm"}
 

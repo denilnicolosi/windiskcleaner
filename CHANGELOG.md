@@ -28,6 +28,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - “Find leftovers” in the Programs tab: after an uninstall, looks in AppData, LocalLow and
   ProgramData for folders the program left behind and opens the guided check. Folders
   that also fit a program still installed are never proposed.
+- “File types” tab: space by kind of file (video, images, programs…) and by extension.
+- Filter box on the file and program tables: words, and sizes such as `>500mb`; the file
+  tables now search every tracked file, not only the first 200 shown.
+- Right-click a folder → “Scan this folder again” to refresh it without a full scan.
 
 ### Changed
 
