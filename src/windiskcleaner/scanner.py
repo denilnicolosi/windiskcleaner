@@ -5,7 +5,7 @@ Single-threaded on purpose. A thread-pool version was measured on a 360 GB syste
 of very short calls, and Python threads spend their time handing the interpreter lock to
 each other. Going faster would take processes or native code, not threads.
 
-`scan(workers=N)` is the process version (prototype, off by default): the parent walks the
+`scan(workers=N)` is the process version (the window uses it for full scans): the parent walks the
 top SPLIT_DEPTH levels, worker processes walk the folders below, and the parent walks the
 top again using their results.
 """
@@ -28,6 +28,11 @@ PROGRESS_EVERY = 5000
 # ponytail: fixed split depth. A single huge folder at this depth (one user's AppData) is one
 # job and caps the speed-up; split big jobs further if the benchmark shows one worker lagging.
 SPLIT_DEPTH = 3
+# Processes for a full scan from the window. Measured on a 374 GB system drive (2.2 M files,
+# 6 cores, SSD): 80 s with one, 48 s with four, no gain beyond.
+# ponytail: same number on every disk. A spinning disk gains nothing from it and may lose;
+# detect the media type (or add a setting) if someone reports a slower scan.
+DEFAULT_WORKERS = min(4, os.cpu_count() or 1)
 
 
 class ScanCancelled(Exception):
@@ -201,6 +206,8 @@ def _parallel(root: str, walk: _Walk, workers: int) -> Node:
     first = _Walk(*args, None, None)
     first.split, first.jobs = SPLIT_DEPTH, []
     first.walk(root, 0, False)
+    if not first.jobs:  # shallow tree: nothing worth starting processes for
+        return walk.walk(root, 0, False)
     # ponytail: progress moves once per finished folder, not every PROGRESS_EVERY files.
     with multiprocessing.Pool(workers, _init_worker, args) as pool:  # exit terminates it
         results = pool.imap_unordered(_job, first.jobs)
@@ -242,8 +249,7 @@ def scan(
     watch_paths: directories whose total size is recorded even below max_depth.
     watch_names: directory names (e.g. node_modules) whose every occurrence is recorded.
     progress(files, current_path, bytes): running totals, every PROGRESS_EVERY files.
-    workers: more than 1 walks with that many processes (prototype; no gain expected on
-    spinning disks).
+    workers: more than 1 walks with that many processes (no gain expected on spinning disks).
     """
     started = time.monotonic()
     root = os.path.abspath(root)

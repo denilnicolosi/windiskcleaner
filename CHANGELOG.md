@@ -51,6 +51,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ### Changed
 
+- Scanning a whole drive uses up to four processes: about 1.6 times faster on an SSD
+  (80 s to 48 s on a 374 GB drive). `--workers N` does the same for `--report`.
 - Renamed from DiskDiet to WinDiskCleaner, because a Mac app already uses that name. The
   data folder `%LOCALAPPDATA%\DiskDiet` moves to `%LOCALAPPDATA%\WinDiskCleaner` at the first
   start. Version 0.1.0 cannot update itself to this one: download the new exe once.

@@ -18,11 +18,17 @@
 `scanner.scan` walks the tree once with `os.scandir` (on Windows the directory listing
 already carries size, dates and attributes, so there is no extra call per file).
 
-The walk is single-threaded on purpose. A thread-pool version was measured on a 360 GB
+The walk has no threads, on purpose. A thread-pool version was measured on a 360 GB
 drive: 105 s with one thread, 867 s with two, 586 s with six. Millions of very short
 calls make Python threads fight over the interpreter lock. A faster scan would need
 processes or native code (reading the NTFS file table directly is what the fastest
 tools do, and needs administrator rights).
+
+Processes do help: `scan(workers=N)` lets the parent walk the top three levels, hands the
+folders below to worker processes and walks the top again with their results. On a 374 GB
+drive (2.2 M files, 6 cores, SSD) that took 48 s with four processes against 80 s with
+one; eight were no faster. The window uses it for whole drives only (starting the
+processes costs about a second), and `--workers` does for the headless report.
 
 - Folder nodes are kept down to `max_depth` (6) for the pie chart; deeper sizes are rolled
   up into their ancestor.

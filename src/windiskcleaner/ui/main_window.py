@@ -41,7 +41,7 @@ from windiskcleaner import (
 )
 from windiskcleaner.log import logger
 from windiskcleaner.log import setup as setup_log
-from windiskcleaner.scanner import scan
+from windiskcleaner.scanner import DEFAULT_WORKERS, scan
 from windiskcleaner.strings import fmt_size, tr
 from windiskcleaner.ui.icon import app_icon
 from windiskcleaner.ui.more_tabs import CompressTab, GamesTab, GrowthTab, TypesTab
@@ -252,10 +252,13 @@ class MainWindow(QMainWindow):
         used = volume.total - volume.free if volume else 0  # unknown for a plain folder
         logger.info("scan start: %s", root)
 
+        # Starting the processes costs about a second: worth it for a drive, not a folder.
+        workers = DEFAULT_WORKERS if volume else 1
+
         def job(progress, cancelled):
             result = scan(
                 root, watch_paths=rules.watch_paths(), watch_names=advisor.REGENERABLE,
-                cancelled=cancelled,
+                cancelled=cancelled, workers=workers,
                 progress=lambda files, path, size: progress((files, size), path),
             )
             programs = system.installed_programs()

@@ -18,7 +18,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", choices=("json", "html", "csv"), help="scan without a window")
     parser.add_argument("--root", default=os.environ.get("SystemDrive", "C:") + "\\")
     parser.add_argument("--out", help="report file (default: standard output)")
-    parser.add_argument("--workers", type=int, default=1, help="scan processes (prototype)")
+    parser.add_argument("--workers", type=int, default=1, help="scan processes")
     args = parser.parse_args(argv)
 
     if not args.report:
