@@ -21,7 +21,7 @@ def data_dir() -> str:
     return os.environ.get("WINDISKCLEANER_HOME") or os.path.join(base, "WinDiskCleaner")
 
 
-OLD_NAME = "DiskDiet"  # the program's name before 0.2.0
+OLD_NAME = "DiskDiet"  # the program's name before 0.1.1
 
 
 def migrate_old_home() -> str:
