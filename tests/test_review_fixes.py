@@ -140,6 +140,11 @@ def test_every_translated_call_formats_in_both_languages():
 # ---- damaged data --------------------------------------------------------------------
 def test_dates_windows_cannot_convert(app, tmp_path, make):
     assert fmt_date(-1.0) == "" and fmt_date(0.0 + 86400)
+    from windiskcleaner.strings import fmt_stamp
+
+    assert fmt_stamp("2026-11-10T16:23:11") == "10-11-2026 16:23:11"
+    assert fmt_stamp("20251104") == "04-11-2025" and fmt_stamp("odd") == "odd"
+    assert len(fmt_date(1_700_000_000)) == 10 and fmt_date(1_700_000_000)[2] == "-"
     window = MainWindow()
     window.big.load([FileInfo(2 << 20, -1.0, "x.bin")])
     assert window.big.rowCount() == 1

@@ -36,12 +36,26 @@ def tr(name: str, /, **kw) -> str:
     return text.format(**kw) if kw else text
 
 
+DATE = "%d-%m-%Y"  # every date the user sees, in both languages
+
+
 def fmt_date(timestamp: float) -> str:
-    """YYYY-MM-DD, or "" for dates Windows cannot convert (before 1970, damaged files)."""
+    """DD-MM-YYYY, or "" for dates Windows cannot convert (before 1970, damaged files)."""
     try:
-        return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d")
+        return datetime.fromtimestamp(timestamp).strftime(DATE)
     except (OSError, OverflowError, ValueError):
         return ""
+
+
+def fmt_stamp(text: str) -> str:
+    """An ISO date or date-time as stored in our files ("2026-11-10T16:23:11", or the
+    registry's "20261110") shown as DD-MM-YYYY [HH:MM:SS]; anything else as it is."""
+    for pattern, shown in (("%Y-%m-%dT%H:%M:%S", DATE + " %H:%M:%S"), ("%Y%m%d", DATE)):
+        try:
+            return datetime.strptime(text, pattern).strftime(shown)
+        except (TypeError, ValueError):
+            continue
+    return text or ""
 
 
 def fmt_size(n: int) -> str:

@@ -35,7 +35,7 @@ from windiskcleaner.duplicates import find_duplicates
 from windiskcleaner.log import logger
 from windiskcleaner.rules import RESTORE_POINT, Action, Safety
 from windiskcleaner.scanner import scan
-from windiskcleaner.strings import fmt_date, fmt_size, pick, tr
+from windiskcleaner.strings import fmt_date, fmt_size, fmt_stamp, pick, tr
 from windiskcleaner.ui.pie import PieWidget
 from windiskcleaner.ui.review_dialog import ReviewDialog
 from windiskcleaner.ui.terminal import Terminal, decode
@@ -758,9 +758,8 @@ class ProgramsTab(QWidget):
             size.setTextAlignment(RIGHT)
             self.table.setItem(i, 1, size)
             self.table.setItem(i, 2, QTableWidgetItem(p.publisher))
-            day = p.installed  # YYYYMMDD in the registry
-            shown = f"{day[:4]}-{day[4:6]}-{day[6:8]}" if len(day) == 8 and day.isdigit() else day
-            self.table.setItem(i, 3, SortItem(shown, int(day) if day.isdigit() else 0))
+            day = p.installed  # YYYYMMDD in the registry: sorts as a number
+            self.table.setItem(i, 3, SortItem(fmt_stamp(day), int(day) if day.isdigit() else 0))
         self.table.setSortingEnabled(True)
 
     def uninstall_selected(self) -> None:
@@ -844,7 +843,7 @@ class JournalTab(QWidget):
         self.table.setSortingEnabled(False)
         self.table.setRowCount(len(entries))
         for i, e in enumerate(entries):
-            when = QTableWidgetItem(e["when"].replace("T", " "))
+            when = SortItem(fmt_stamp(e["when"]), e["when"])  # ISO text sorts by date
             when.setData(ROLE, e)
             self.table.setItem(i, 0, when)
             size = SortItem(fmt_size(e["size"]), e["size"])

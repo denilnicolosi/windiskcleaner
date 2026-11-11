@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from windiskcleaner import actions, advisor, compress, history
-from windiskcleaner.strings import fmt_date, fmt_size, tr
+from windiskcleaner.strings import fmt_date, fmt_size, fmt_stamp, tr
 from windiskcleaner.ui.widgets import RIGHT, ROLE, SortItem, confirm, make_table, with_filter
 
 
@@ -198,7 +198,7 @@ class GrowthTab(QWidget):
             return
         delta = after["total"] - before["total"]
         self.summary.setText(tr(
-            "grow.summary", when=before["when"].replace("T", " "),
+            "grow.summary", when=fmt_stamp(before["when"]),
             before=fmt_size(before["total"]), after=fmt_size(after["total"]),
             change=_signed(delta),
         ))
