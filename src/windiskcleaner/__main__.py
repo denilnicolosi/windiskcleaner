@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing
 import os
 import sys
 
@@ -11,11 +12,13 @@ from windiskcleaner import __version__
 
 
 def main(argv: list[str] | None = None) -> int:
+    multiprocessing.freeze_support()  # scan worker processes in the packaged exe
     parser = argparse.ArgumentParser(prog="windiskcleaner", description="Disk space analyzer.")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--report", choices=("json", "html", "csv"), help="scan without a window")
     parser.add_argument("--root", default=os.environ.get("SystemDrive", "C:") + "\\")
     parser.add_argument("--out", help="report file (default: standard output)")
+    parser.add_argument("--workers", type=int, default=1, help="scan processes (prototype)")
     args = parser.parse_args(argv)
 
     if not args.report:
@@ -28,7 +31,8 @@ def main(argv: list[str] | None = None) -> int:
     settings.migrate_old_home()
     from windiskcleaner.scanner import scan
 
-    result = scan(args.root, watch_paths=rules.watch_paths(), watch_names=advisor.REGENERABLE)
+    result = scan(args.root, watch_paths=rules.watch_paths(), watch_names=advisor.REGENERABLE,
+                  workers=args.workers)
     programs = system.installed_programs()
     recs = advisor.build(result, programs=programs, exclude=settings.load()["exclude"])
     data = report.to_dict(result, recs, programs)

@@ -4,10 +4,15 @@ Single-threaded on purpose. A thread-pool version was measured on a 360 GB syste
 (2.2 M files): 105 s with one thread, 867 s with two, 586 s with six. The walk is millions
 of very short calls, and Python threads spend their time handing the interpreter lock to
 each other. Going faster would take processes or native code, not threads.
+
+`scan(workers=N)` is the process version (prototype, off by default): the parent walks the
+top SPLIT_DEPTH levels, worker processes walk the folders below, and the parent walks the
+top again using their results.
 """
 
 from __future__ import annotations
 
+import multiprocessing
 import os
 import stat
 import time
@@ -20,6 +25,9 @@ REPARSE_POINT = 0x400  # junctions, symlinks: skipped, their target is counted w
 CLOUD_PLACEHOLDER = 0x400000 | 0x1000  # OneDrive files that are not on disk
 MIN_TRACKED_FILE = 1 << 20  # files at least this big are listed individually
 PROGRESS_EVERY = 5000
+# ponytail: fixed split depth. A single huge folder at this depth (one user's AppData) is one
+# job and caps the speed-up; split big jobs further if the benchmark shows one worker lagging.
+SPLIT_DEPTH = 3
 
 
 class ScanCancelled(Exception):
@@ -93,6 +101,18 @@ class _Walk:
         self.named: list[Node] = []
         self.denied = self.cloud = 0
         self.files = self.bytes = 0
+        self.split = -1  # parallel scan only: depth at which folders go to worker processes
+        self.jobs: list[tuple[str, int, bool]] | None = None  # first pass: collect them
+        self.done: dict[str, Node] = {}  # second pass: their results
+
+    def subtree(self, path: str, depth: int, in_named: bool) -> Node:
+        if depth == self.split:
+            if self.jobs is not None:
+                self.jobs.append((path, depth, in_named))
+                return Node(path)
+            if path in self.done:  # absent: the folder appeared between the two passes
+                return self.done[path]
+        return self.walk(path, depth, in_named)
 
     def tick(self, path: str) -> None:
         if self.cancelled and self.cancelled():
@@ -132,7 +152,7 @@ class _Walk:
                     continue
                 if is_dir:
                     hit = not in_named and entry.name.lower() in self.names
-                    child = self.walk(entry.path, depth + 1, in_named or hit)
+                    child = self.subtree(entry.path, depth + 1, in_named or hit)
                     node.size += child.size
                     node.files += child.files
                     node.newest = max(node.newest, child.newest)
@@ -160,6 +180,53 @@ class _Walk:
         return node
 
 
+_worker_args: tuple = ()
+
+
+def _init_worker(*args) -> None:
+    global _worker_args
+    _worker_args = args
+
+
+def _job(job: tuple[str, int, bool]) -> tuple[str, Node, _Walk]:
+    walk = _Walk(*_worker_args, None, None)
+    node = walk.walk(*job)
+    walk.watch = walk.names = None  # not needed back; keeps the pickled result small
+    return job[0], node, walk
+
+
+def _parallel(root: str, walk: _Walk, workers: int) -> Node:
+    """Fill `walk` like walk.walk(root, 0, False) would, using worker processes."""
+    args = (walk.watch, walk.names, walk.max_depth)
+    first = _Walk(*args, None, None)
+    first.split, first.jobs = SPLIT_DEPTH, []
+    first.walk(root, 0, False)
+    # ponytail: progress moves once per finished folder, not every PROGRESS_EVERY files.
+    with multiprocessing.Pool(workers, _init_worker, args) as pool:  # exit terminates it
+        results = pool.imap_unordered(_job, first.jobs)
+        while True:
+            try:
+                path, node, part = results.next(timeout=0.2)
+            except StopIteration:
+                break
+            except multiprocessing.TimeoutError:
+                walk.tick(root)  # lets a cancel through while a big folder is running
+                continue
+            walk.done[path] = node
+            walk.big += part.big
+            for ext, size in part.ext.items():
+                walk.ext[ext] += size
+            walk.watched.update(part.watched)
+            walk.named += part.named
+            walk.denied += part.denied
+            walk.cloud += part.cloud
+            walk.files += part.files
+            walk.bytes += part.bytes
+            walk.tick(path)
+    walk.split = SPLIT_DEPTH
+    return walk.walk(root, 0, False)
+
+
 def scan(
     root: str,
     *,
@@ -168,18 +235,21 @@ def scan(
     max_depth: int = 6,
     progress: Callable[[int, str, int], None] | None = None,
     cancelled: Callable[[], bool] | None = None,
+    workers: int = 1,
 ) -> ScanResult:
     """Walk `root` and return sizes.
 
     watch_paths: directories whose total size is recorded even below max_depth.
     watch_names: directory names (e.g. node_modules) whose every occurrence is recorded.
     progress(files, current_path, bytes): running totals, every PROGRESS_EVERY files.
+    workers: more than 1 walks with that many processes (prototype; no gain expected on
+    spinning disks).
     """
     started = time.monotonic()
     root = os.path.abspath(root)
     walk = _Walk({key(p) for p in watch_paths}, {n.lower() for n in watch_names}, max_depth,
                  progress, cancelled)
-    node = walk.walk(root, 0, False)
+    node = _parallel(root, walk, workers) if workers > 1 else walk.walk(root, 0, False)
     walk.tick(root)  # final totals
     return ScanResult(
         root=node, big_files=walk.big, ext_sizes=dict(walk.ext), watched=walk.watched,

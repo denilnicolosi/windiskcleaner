@@ -70,3 +70,27 @@ def test_cancel(tmp_path, make):
         make(f"f{i}")
     with pytest.raises(ScanCancelled):
         scan(str(tmp_path), cancelled=lambda: True)
+
+
+def test_worker_processes_give_the_same_result(tmp_path, make):
+    make("top.bin", 3)
+    make("a/b/shallow.txt", 7)
+    make("a/b/c/d/e/deep.bin", MIN_TRACKED_FILE)
+    make("a/b/c/node_modules/x/node_modules/pkg.js", 5)  # name found below the split
+    make("node_modules/q/r/s/t.js", 9)  # name found above it
+    make("w/x/y/z/cache/blob", 42)
+    watch = [str(tmp_path / "w" / "x" / "y" / "z" / "cache"), str(tmp_path / "a" / "b" / "c")]
+    kwargs = dict(watch_paths=watch, watch_names=["node_modules"], max_depth=4)
+    one = scan(str(tmp_path), **kwargs)
+    two = scan(str(tmp_path), workers=2, **kwargs)
+    assert two.root == one.root
+    assert sorted(two.big_files) == sorted(one.big_files)
+    assert (two.ext_sizes, two.watched) == (one.ext_sizes, one.watched)
+    assert sorted(n.path for n in two.named) == sorted(n.path for n in one.named)
+    assert two.find(two.named[0].path) is not None
+
+
+def test_cancel_with_worker_processes(tmp_path, make):
+    make("a/b/c/d/file.bin", 1)
+    with pytest.raises(ScanCancelled):
+        scan(str(tmp_path), workers=2, cancelled=lambda: True)
