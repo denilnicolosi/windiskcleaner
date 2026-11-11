@@ -508,6 +508,9 @@ class MainWindow(QMainWindow):
         if self.session.deleted and not self.skip_summary:
             self.closing_summary()
         event.accept()
+        if self in _WINDOWS:  # let it go: it holds a whole scan tree
+            _WINDOWS.remove(self)
+        self.deleteLater()
 
     def closing_summary(self) -> None:
         s = self.session

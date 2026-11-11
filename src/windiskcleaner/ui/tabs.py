@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QGroupBox,
     QHBoxLayout,
-    QHeaderView,
     QInputDialog,
     QLabel,
     QListWidget,
@@ -52,6 +51,7 @@ from windiskcleaner.ui.widgets import (
     ROLE,
     YES,
     SortItem,
+    auto_fit,
     confirm,
     make_table,
     matches,
@@ -90,13 +90,8 @@ class Overview(QWidget):
         self.view = QPushButton(tr("ui.treemap"))
         self.view.clicked.connect(self.toggle_view)
         self.table = make_table(
-            [tr("col.name"), tr("col.size"), tr("col.share"), tr("col.files")]
+            [tr("col.name"), tr("col.size"), tr("col.share"), tr("col.files")], stretch=0
         )
-        header = self.table.horizontalHeader()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for col in (1, 2, 3):
-            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         self.table.cellDoubleClicked.connect(lambda row, _c: self.enter(self.row_nodes[row]))
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.table_menu)
@@ -257,11 +252,7 @@ class RecPanel(QWidget):
         self.tree.setHeaderLabels(
             [tr("col.name"), tr("col.size"), tr("col.safety"), tr("col.action")]
         )
-        header = self.tree.header()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for col in (1, 2, 3):
-            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        auto_fit(self.tree, 0)
         self.tree.currentItemChanged.connect(lambda *_: self.show_detail())
         self.tree.itemDoubleClicked.connect(lambda *_: self.review_button.click())
         self.why = QLabel()
@@ -518,7 +509,7 @@ class FileTable(QTableWidget):
         self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.verticalHeader().setVisible(False)
-        self.horizontalHeader().setStretchLastSection(True)
+        auto_fit(self, 2)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.menu)
         self.files, self.query = [], ""
@@ -725,7 +716,8 @@ class ProgramsTab(QWidget):
         self.win = win
         self.programs = []
         self.table = make_table(
-            [tr("col.name"), tr("col.size"), tr("col.publisher"), tr("col.installed")]
+            [tr("col.name"), tr("col.size"), tr("col.publisher"), tr("col.installed")],
+            stretch=0,
         )
         self.table.itemSelectionChanged.connect(
             lambda: self.uninstall.setEnabled(self.table.currentRow() >= 0)
@@ -762,9 +754,13 @@ class ProgramsTab(QWidget):
             name = QTableWidgetItem(p.name)
             name.setData(ROLE, p)
             self.table.setItem(i, 0, name)
-            self.table.setItem(i, 1, SortItem(fmt_size(p.size) if p.size else "", p.size))
+            size = SortItem(fmt_size(p.size) if p.size else "", p.size)
+            size.setTextAlignment(RIGHT)
+            self.table.setItem(i, 1, size)
             self.table.setItem(i, 2, QTableWidgetItem(p.publisher))
-            self.table.setItem(i, 3, QTableWidgetItem(p.installed))
+            day = p.installed  # YYYYMMDD in the registry
+            shown = f"{day[:4]}-{day[4:6]}-{day[6:8]}" if len(day) == 8 and day.isdigit() else day
+            self.table.setItem(i, 3, SortItem(shown, int(day) if day.isdigit() else 0))
         self.table.setSortingEnabled(True)
 
     def uninstall_selected(self) -> None:
@@ -851,7 +847,9 @@ class JournalTab(QWidget):
             when = QTableWidgetItem(e["when"].replace("T", " "))
             when.setData(ROLE, e)
             self.table.setItem(i, 0, when)
-            self.table.setItem(i, 1, SortItem(fmt_size(e["size"]), e["size"]))
+            size = SortItem(fmt_size(e["size"]), e["size"])
+            size.setTextAlignment(RIGHT)
+            self.table.setItem(i, 1, size)
             self.table.setItem(i, 2, QTableWidgetItem(tr(f"log.mode.{e['mode']}")))
             kept_in_place = e["mode"] == journal.COMPRESSED and e["state"] == "removed"
             state = "compressed" if kept_in_place else e["state"]

@@ -81,6 +81,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - A compression that saves nothing is reported as such and not recorded.
 - Duplicates that could not be removed stay in the list.
 - Going up in the Overview while a folder is being removed no longer breaks the totals.
+- Every table and list fits its columns to their content, header included: no more
+  resizing by hand. One column (path or name) takes the remaining width; text that does not
+  fit shows whole in a tooltip. Installation dates read YYYY-MM-DD.
+- Windows replaced after a change of language, settings or exclusions are released instead
+  of keeping a whole scan in memory.
 
 ## [0.1.0] - 2026-11-10
 

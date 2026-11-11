@@ -28,7 +28,7 @@ class CompressTab(QWidget):
         hint = QLabel(tr("cmp.hint"))
         hint.setWordWrap(True)
         self.table = make_table([tr("col.path"), tr("col.size"), tr("col.on_disk"),
-                                 tr("col.estimate")])
+                                 tr("col.estimate")], stretch=0)
         self.table.itemSelectionChanged.connect(self.selection_changed)
         self.algorithm = QComboBox()
         for name in compress.ALGORITHMS:
@@ -183,7 +183,7 @@ class GrowthTab(QWidget):
         self.summary = QLabel(tr("grow.none"))
         self.summary.setWordWrap(True)
         self.table = make_table([tr("col.path"), tr("grow.before"), tr("grow.after"),
-                                 tr("grow.change")])
+                                 tr("grow.change")], stretch=0)
         self.table.cellDoubleClicked.connect(
             lambda row, _c: actions.open_in_explorer(self.table.item(row, 0).text()))
         layout = QVBoxLayout(self)
@@ -224,9 +224,10 @@ class TypesTab(QWidget):
     def __init__(self, win):
         super().__init__()
         self.win = win
-        self.kinds = make_table([tr("col.kind"), tr("col.size"), tr("col.share")])
+        self.kinds = make_table([tr("col.kind"), tr("col.size"), tr("col.share")], stretch=0)
         self.kinds.setMaximumHeight(260)
-        self.exts = make_table([tr("col.ext"), tr("col.kind"), tr("col.size"), tr("col.share")])
+        self.exts = make_table([tr("col.ext"), tr("col.kind"), tr("col.size"), tr("col.share")],
+                               stretch=1)
         hint = QLabel(tr("types.hint"))
         hint.setWordWrap(True)
         layout = QVBoxLayout(self)

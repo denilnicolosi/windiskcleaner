@@ -352,3 +352,49 @@ def test_going_up_during_a_delete_keeps_the_totals(app, profile, make, monkeypat
     settle(app, window)
     assert result.root.size == total - 50
     window.close()
+
+
+def test_every_grid_column_fits_its_content(app, profile, make):
+    """Columns must show their content without resizing by hand; one column per grid
+    stretches into the remaining width."""
+    from PySide6.QtWidgets import QHeaderView, QTableView, QTreeView
+
+    from windiskcleaner.ui.widgets import MAX_FIT
+
+    long_name = "A program with a rather long name, version 2025 (64-bit)"
+    make("AppData/Local/Temp/a.tmp", 10)
+    window, _result = window_for(profile)
+    window.program_tab.load([Program(long_name, "A publisher with a long name", 7 << 30,
+                                     "20251104")])
+    window.games_tab.load([Game("A game with a long title: Definitive Edition", "Steam",
+                                r"D:\Games\Some", 10, 0.0, "1")])
+    journal.add(str(profile / "x"), 123456789, 1, journal.MOVED, "D:/x", "s")
+    window.journal_tab.reload()
+    window.resize(1180, 760)
+    window.show()
+    app.processEvents()
+    app.processEvents()
+    checked = 0
+    for view in window.findChildren(QTableView) + window.findChildren(QTreeView):
+        if not view.model().rowCount():
+            continue
+        header = view.horizontalHeader() if isinstance(view, QTableView) else view.header()
+        for col in range(header.count()):
+            if header.sectionResizeMode(col) == QHeaderView.ResizeMode.Stretch:
+                continue
+            need = max(view.sizeHintForColumn(col), header.sectionSizeHint(col))
+            assert header.sectionSize(col) >= min(need, MAX_FIT), (view.parent(), col)
+            checked += 1
+    assert checked > 20
+    window.close()
+
+
+def test_a_replaced_window_is_released(app, profile, make):
+    make("data/a.bin", 10)
+    window, _result = window_for(profile)
+    main_window._WINDOWS.append(window)
+    window.reopen()
+    settle(app, window)
+    assert window not in main_window._WINDOWS and len(main_window._WINDOWS) >= 1
+    main_window._WINDOWS[-1].close()
+    assert not main_window._WINDOWS or all(w.isVisible() for w in main_window._WINDOWS)

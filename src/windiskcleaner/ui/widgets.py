@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import re
 
-from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QHeaderView,
     QLineEdit,
     QMessageBox,
+    QTableView,
     QTableWidget,
     QTableWidgetItem,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
+from shiboken6 import isValid
 
 from windiskcleaner.log import logger
 from windiskcleaner.scanner import ScanCancelled
@@ -25,6 +30,8 @@ GREY_FREE, GREY_UNSCANNED, GREY_OTHER = "#d4d4d4", "#8c8c8c", "#b0b0b0"
 ROLE = Qt.ItemDataRole.UserRole
 RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 MAX_ROWS = 200
+PADDING = 12  # px of air after the longest text
+MAX_FIT = 420  # px: a fitted column never grows past this, the stretch column takes the rest
 YES, NO = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No
 
 
@@ -60,15 +67,79 @@ class SortItem(QTableWidgetItem):
         return self.value < getattr(other, "value", 0)
 
 
-def make_table(headers: list[str]) -> QTableWidget:
+def make_table(headers: list[str], stretch: int = -1) -> QTableWidget:
+    """A read-only table whose columns fit their content; `stretch` (default: the last)
+    takes the remaining width."""
     table = QTableWidget(0, len(headers))
     table.setHorizontalHeaderLabels(headers)
     table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
     table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
     table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
     table.verticalHeader().setVisible(False)
-    table.horizontalHeader().setStretchLastSection(True)
+    auto_fit(table, stretch % len(headers))
     return table
+
+
+class _ElidedTips(QObject):
+    """Shows the whole text of a cell whose text does not fit (paths are elided with "…")."""
+
+    def __init__(self, view: QAbstractItemView):
+        super().__init__(view)
+        self.view = view
+
+    def eventFilter(self, _obj, event) -> bool:
+        if event.type() != QEvent.Type.ToolTip:
+            return False
+        index = self.view.indexAt(event.pos())
+        text = index.data() if index.isValid() else None
+        if not isinstance(text, str) or index.data(Qt.ItemDataRole.ToolTipRole):
+            return False  # nothing to say, or the cell has its own tooltip
+        if self.view.visualRect(index).width() >= self.view.sizeHintForIndex(index).width():
+            QToolTip.hideText()
+            return True
+        QToolTip.showText(event.globalPos(), text, self.view)
+        return True
+
+
+def auto_fit(view: QAbstractItemView, stretch: int) -> None:
+    """Keep every column wide enough for its content, without the user resizing by hand.
+
+    Column `stretch` (usually the path or name) fills what is left. The others are fitted
+    whenever rows arrive, and grow when a cell gets wider text; between loads they never
+    shrink, so a width the user chose is kept. A fitted column stops at MAX_FIT.
+    """
+    header = view.horizontalHeader() if isinstance(view, QTableView) else view.header()
+    header.setStretchLastSection(False)
+    stretchy, free = QHeaderView.ResizeMode.Stretch, QHeaderView.ResizeMode.Interactive
+    for col in range(header.count()):
+        header.setSectionResizeMode(col, stretchy if col == stretch else free)
+    state = {"pending": False, "grow_only": True}
+
+    def fit() -> None:
+        state["pending"] = False
+        for col in range(header.count()):
+            if col == stretch:
+                continue
+            content = max(view.sizeHintForColumn(col), header.sectionSizeHint(col))
+            want = min(MAX_FIT, content + PADDING)
+            if not state["grow_only"] or want > header.sectionSize(col):
+                header.resizeSection(col, want)
+        state["grow_only"] = True
+
+    def later(grow_only: bool) -> None:
+        if not isValid(header):
+            return  # the model reports its own teardown after the view is gone
+        state["grow_only"] = state["grow_only"] and grow_only
+        if not state["pending"]:
+            state["pending"] = True
+            QTimer.singleShot(0, header, fit)  # once, after the load; dropped with the view
+
+    view.viewport().installEventFilter(_ElidedTips(view))
+    model = view.model()
+    model.rowsInserted.connect(lambda *_: later(False))
+    model.modelReset.connect(lambda *_: later(False))
+    model.dataChanged.connect(lambda *_: later(True))
+    later(False)  # the header labels alone
 
 
 def swatch(colour: str) -> QPixmap:
@@ -123,9 +194,9 @@ def with_filter(table: QTableWidget, size_col: int | None = None,
     pending = [False]
 
     def later(*_args) -> None:  # once, after a whole reload
-        if not pending[0]:
+        if isValid(table) and not pending[0]:
             pending[0] = True
-            QTimer.singleShot(0, lambda: (pending.__setitem__(0, False), apply()))
+            QTimer.singleShot(0, table, lambda: (pending.__setitem__(0, False), apply()))
 
     if on_query:
         box.textChanged.connect(on_query)
