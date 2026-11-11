@@ -105,8 +105,9 @@ TEAMS = "Local/Packages/MSTeams_8wekyb3d8bbwe/LocalCache/Microsoft/MSTeams"
 
 
 @pytest.mark.parametrize("rule_id, files", [
-    ("app_update_leftovers", ["Local/foo-updater/installer.exe", "Local/foo-updater/pending/u.exe",
-                              "Local/Bar/packages/Bar-1.0-full.nupkg"]),
+    ("app_update_leftovers", ["Local/foo-updater/installer.exe",
+                              "Local/foo-updater/pending/u.exe"]),
+    ("squirrel_packages", ["Local/Bar/packages/Bar-1.0-full.nupkg"]),
     ("shader_caches", ["LocalLow/NVIDIA/DXCache/a.bin", "Roaming/NVIDIA/ComputeCache/b.bin"]),
     ("google_earth_cache", ["LocalLow/Google/GoogleEarth/Cache/tiles.dat"]),
     ("teams_cache", [f"{TEAMS}/EBWebView/WV2Profile_tfw/Cache/a", f"{TEAMS}/Logs/x.log"]),

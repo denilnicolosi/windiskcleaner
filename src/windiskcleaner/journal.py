@@ -8,12 +8,14 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 
 from windiskcleaner import settings
 
 TRASH, PERMANENT, MOVED = "trash", "permanent", "moved"
 COMPRESSED = "compressed"  # still in place; `location` holds the algorithm
+KEEP = 20000  # entries kept; the oldest go first
 
 
 def _file() -> str:
@@ -55,16 +57,36 @@ def load() -> list[dict]:
     entries = []
     for line in lines:
         try:
-            entries.append(json.loads(line))
+            entry = json.loads(line)
         except ValueError:
             continue  # a half-written line after a crash
+        if isinstance(entry, dict) and {"id", "path", "mode", "state"} <= entry.keys():
+            entries.append(entry)
     return entries
 
 
-def mark_restored(entry_id: str) -> None:
+def _write(entries: list[dict]) -> None:
+    settings.write_atomic(_file(), "".join(json.dumps(e) + "\n" for e in entries))
+
+
+def trim(keep: int = KEEP) -> None:
+    """Forget the oldest entries once the log has grown past `keep`."""
+    entries = load()
+    if len(entries) > keep:
+        _write(entries[-keep:])
+
+
+def mark(ids: Iterable[str], state: str) -> None:
+    """Set the state of many entries with one rewrite of the file."""
+    wanted = set(ids)
+    if not wanted:
+        return
     entries = load()
     for entry in entries:
-        if entry["id"] == entry_id:
-            entry["state"] = "restored"
-    with open(_file(), "w", encoding="utf-8") as f:
-        f.writelines(json.dumps(e) + "\n" for e in entries)
+        if entry["id"] in wanted:
+            entry["state"] = state
+    _write(entries)
+
+
+def mark_restored(entry_id: str) -> None:
+    mark([entry_id], "restored")

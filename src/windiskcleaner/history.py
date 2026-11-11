@@ -51,9 +51,12 @@ def load() -> list[dict]:
     entries = []
     for line in lines:
         try:
-            entries.append(json.loads(line))
+            entry = json.loads(line)
         except ValueError:
             continue
+        if (isinstance(entry, dict) and isinstance(entry.get("folders"), dict)
+                and isinstance(entry.get("root"), str) and isinstance(entry.get("total"), int)):
+            entries.append(entry)
     return entries
 
 
@@ -71,8 +74,8 @@ def save(result: ScanResult) -> dict:
     mine = [e for e in entries if key(e.get("root", "")) == k]
     drop = {id(e) for e in mine[:-KEEP]}
     os.makedirs(settings.data_dir(), exist_ok=True)
-    with open(_file(), "w", encoding="utf-8") as f:
-        f.writelines(json.dumps(e) + "\n" for e in entries if id(e) not in drop)
+    settings.write_atomic(
+        _file(), "".join(json.dumps(e) + "\n" for e in entries if id(e) not in drop))
     return entry
 
 

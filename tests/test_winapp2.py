@@ -17,10 +17,10 @@ FileKey1=%AppData%\Risky\Data|*.*
 ExcludeKey1=FILE|%AppData%\Risky\Data\|keep.db
 
 [Windows Stuff *]
-FileKey1=%WinDir%\Temp|*.*
+FileKey1=%WinDir%\Temp|*.*|RECURSE
 
 [Covered *]
-FileKey1=%LocalAppData%\uv\cache|*.*
+FileKey1=%LocalAppData%\uv\cache|*.*|RECURSE
 """
 
 

@@ -40,6 +40,14 @@ def migrate_old_home() -> str:
     return old
 
 
+def write_atomic(path: str, text: str) -> None:
+    """Replace a file in one step: a crash halfway leaves the old version, not half a file."""
+    temporary = path + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.replace(temporary, path)
+
+
 def _file() -> str:
     return os.path.join(data_dir(), "settings.json")
 
@@ -61,5 +69,4 @@ def load() -> dict:
 
 def save(values: dict) -> None:
     os.makedirs(data_dir(), exist_ok=True)
-    with open(_file(), "w", encoding="utf-8") as f:
-        json.dump({k: values[k] for k in DEFAULTS}, f, indent=2)
+    write_atomic(_file(), json.dumps({k: values[k] for k in DEFAULTS}, indent=2))

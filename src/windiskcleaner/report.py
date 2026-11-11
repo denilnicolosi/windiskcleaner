@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import datetime
 from html import escape
 
 from windiskcleaner import __version__
-from windiskcleaner.strings import fmt_size
+from windiskcleaner.strings import fmt_date, fmt_size
 
 
 def to_dict(result, recs, programs=()) -> dict:
@@ -46,12 +45,11 @@ def to_csv(result) -> str:
     stack = [result.root]
     while stack:
         node = stack.pop()
-        when = datetime.fromtimestamp(node.newest).strftime("%Y-%m-%d") if node.newest else ""
+        when = fmt_date(node.newest) if node.newest else ""
         writer.writerow(["folder", node.path, node.size, node.files, when])
         stack += node.children
     for f in sorted(result.big_files, reverse=True):
-        writer.writerow(["file", f.path, f.size, 1,
-                         datetime.fromtimestamp(f.mtime).strftime("%Y-%m-%d")])
+        writer.writerow(["file", f.path, f.size, 1, fmt_date(f.mtime)])
     return out.getvalue()
 
 

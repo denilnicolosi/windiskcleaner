@@ -44,6 +44,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
   file count and date, ready for Excel.
 - Import a winapp2.ini (Settings → Exclusions): its whole-folder rules become suggestions
   for the guided check, never a one-click cleanup. WinDiskCleaner does not download it.
+- After a cleanup, “Free now” permanently deletes from the Recycle Bin only what that cleanup
+  put there, after asking.
 - Treemap view in the Overview (button next to the path): every subfolder as a box sized
   by its space, with its own subfolders inside; click to enter, right-click for actions.
 
@@ -52,6 +54,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Renamed from DiskDiet to WinDiskCleaner, because a Mac app already uses that name. The
   data folder `%LOCALAPPDATA%\DiskDiet` moves to `%LOCALAPPDATA%\WinDiskCleaner` at the first
   start. Version 0.1.0 cannot update itself to this one: download the new exe once.
+- The uv cache is cleaned with uv's own commands: its folders are too big for the Recycle
+  Bin. Squirrel `.nupkg` packages now go through the guided check.
+- Reports say why an item could not go to the Recycle Bin, and the log keeps the first 25
+  skipped items of an operation. The log of removed items is capped at 20,000 entries.
 - Rebuildable project folders cover more tools (.next, .nuxt, .tox, .dart_tool, Rust
   `target`, .NET `bin`/`obj`, caches of pytest, mypy, ruff…) and generic names such as
   `build` or `bin` count only when the project file is beside them.
@@ -62,6 +68,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 - Rule wildcards no longer follow junctions such as `Dati applicazioni` on Italian
   Windows, which would have counted folders twice.
 - Moving to another drive no longer fails when the archive path exceeds 260 characters.
+- Uninstall, Find leftovers and the games' Uninstall no longer crash.
+- A file with a date before 1970, or a damaged Steam, Epic or history file, no longer stops
+  the end of a scan.
+- An exclusion inside a folder spares only that item instead of hiding the whole advice.
+- Find leftovers no longer proposes folders of an installed program named after its
+  publisher; winapp2 entries without RECURSE no longer propose the whole folder.
+- “What changed” survives a change of settings instead of comparing a scan with itself.
+- Cancel now stops clean-ups and compression; closing the window waits for them. Only one
+  operation runs at a time.
+- “Undo last cleanup” rewrites the log once, not once per item, and shows progress.
+- A compression that saves nothing is reported as such and not recorded.
+- Duplicates that could not be removed stay in the list.
+- Going up in the Overview while a folder is being removed no longer breaks the totals.
 
 ## [0.1.0] - 2026-11-10
 

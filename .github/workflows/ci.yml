@@ -12,8 +12,8 @@ jobs:
   test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
       - run: uv sync
       - run: uv run ruff check
       - run: uv run pytest
@@ -25,7 +25,7 @@ jobs:
           $p = Start-Process dist/WinDiskCleaner.exe -ArgumentList "--report","json","--root","$PWD\tests","--out","$PWD\smoke.json" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "exe exited with $($p.ExitCode)" }
           if ((Get-Content smoke.json -Raw | ConvertFrom-Json).files -lt 1) { throw "empty report" }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: WinDiskCleaner-ci
           path: dist/WinDiskCleaner.exe

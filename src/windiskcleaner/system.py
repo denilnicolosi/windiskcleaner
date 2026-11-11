@@ -74,6 +74,21 @@ def running(image: str) -> bool:
     return image.lower() in out.lower()
 
 
+def running_images() -> set[str]:
+    """Lower-case executable names of every running process, in one tasklist call."""
+    if sys.platform != "win32":
+        return set()
+    try:
+        out = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True, errors="replace",
+            timeout=15, creationflags=NO_WINDOW,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    return {line.split('","')[0].strip('"').lower()
+            for line in out.splitlines() if line.startswith('"')}
+
+
 def installed_programs() -> list[Program]:
     """Programs listed in “Installed apps”, biggest first."""
     if sys.platform != "win32":

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-from datetime import datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -37,7 +36,7 @@ from windiskcleaner.duplicates import find_duplicates
 from windiskcleaner.log import logger
 from windiskcleaner.rules import RESTORE_POINT, Action, Safety
 from windiskcleaner.scanner import scan
-from windiskcleaner.strings import fmt_size, pick, tr
+from windiskcleaner.strings import fmt_date, fmt_size, pick, tr
 from windiskcleaner.ui.pie import PieWidget
 from windiskcleaner.ui.review_dialog import ReviewDialog
 from windiskcleaner.ui.terminal import Terminal, decode
@@ -61,6 +60,12 @@ from windiskcleaner.ui.widgets import (
 )
 
 CHECKED, UNCHECKED = Qt.CheckState.Checked, Qt.CheckState.Unchecked
+MAX_LOG_ROWS = 2000
+
+
+def one_click(rec) -> bool:
+    """Only safe items can be cleaned without the guided check."""
+    return rec is not None and rec.action is Action.DELETE and rec.safety is Safety.SAFE
 
 
 class Overview(QWidget):
@@ -197,7 +202,7 @@ class Overview(QWidget):
 
     def rescan(self, node) -> None:
         """Measure one folder again (after cleaning it elsewhere) without a full scan."""
-        parent = self.stack[-1]
+        parent, chain = self.stack[-1], list(self.stack)  # the user may navigate meanwhile
         if node not in parent.children:
             return
         depth = max(0, 6 - len(self.stack))  # keep the tree as deep as a full scan
@@ -211,7 +216,7 @@ class Overview(QWidget):
                 return
             fresh = result.root
             parent.children[parent.children.index(node)] = fresh
-            for ancestor in self.stack:
+            for ancestor in chain:
                 ancestor.size += fresh.size - node.size
                 ancestor.files += fresh.files - node.files
             logger.info("rescan %s: %d -> %d bytes", node.path, node.size, fresh.size)
@@ -223,7 +228,7 @@ class Overview(QWidget):
         text = tr("file.trash_confirm", path=node.path, size=fmt_size(node.size))
         if not confirm(self, tr("rec.confirm_title"), text):
             return
-        parent = self.stack[-1]
+        parent, chain = self.stack[-1], list(self.stack)  # the user may navigate meanwhile
 
         def job(_progress, _cancelled):
             return actions.delete([node.path], [os.path.dirname(node.path)], source="overview")
@@ -231,7 +236,7 @@ class Overview(QWidget):
         def finished(outcome):
             if outcome.deleted and node in parent.children:
                 parent.children.remove(node)
-                for ancestor in self.stack[: self.stack.index(parent) + 1]:
+                for ancestor in chain:
                     ancestor.size -= node.size
                     ancestor.files -= node.files
                 self.refresh()
@@ -435,13 +440,16 @@ class RecPanel(QWidget):
             group = self.tree.topLevelItem(g)
             for i in range(group.childCount()):
                 item = group.child(i)
-                if item.checkState(0) == CHECKED and not item.isDisabled():
+                if (item.checkState(0) == CHECKED and not item.isDisabled()
+                        and one_click(item.data(0, ROLE))):
                     found.append(item)
         return found
 
     def closed_first(self, recs) -> bool:
         """False if the user stops because a program that owns these files is still open."""
-        open_now = sorted({r.process for r in recs if r.process and system.running(r.process)})
+        wanted = {p for r in recs for p in r.process.split("|") if p}
+        running = system.running_images() if wanted else set()
+        open_now = sorted(p for p in wanted if p.lower() in running)
         if not open_now:
             return True
         return confirm(self, tr("rec.confirm_title"),
@@ -453,7 +461,8 @@ class RecPanel(QWidget):
             group = self.tree.topLevelItem(g)
             for i in range(group.childCount()):
                 item = group.child(i)
-                if item.flags() & Qt.ItemFlag.ItemIsUserCheckable and not item.isDisabled():
+                # Not item.flags(): every tree item is "user checkable" by default.
+                if one_click(item.data(0, ROLE)) and not item.isDisabled():
                     item.setCheckState(0, CHECKED)
         self.clean_checked()
 
@@ -481,11 +490,12 @@ class RecPanel(QWidget):
         count = sum(len(targets) for _rec, targets in plan)
         batch = journal.new_batch()  # one cleanup, undone in one click from the Log tab
 
-        def job(progress, _cancelled):
+        def job(progress, cancelled):
             total, done = actions.Report(), 0
             for rec, targets in plan:
                 total.merge(actions.delete(
                     targets, rec.paths, permanent=rec.permanent, source=rec.id, batch=batch,
+                    cancelled=cancelled,
                     progress=lambda i, _n, path, done=done: progress((done + i, count), path),
                 ))
                 done += len(targets)
@@ -495,7 +505,7 @@ class RecPanel(QWidget):
             for item in items:
                 item.setCheckState(0, UNCHECKED)
                 item.setDisabled(True)
-            self.win.show_report(total)
+            self.win.show_report(total, batch)
 
         self.win.run(job, finished, self.win.item_progress)
 
@@ -521,13 +531,14 @@ class FileTable(QTableWidget):
 
     def set_query(self, query: str) -> None:
         self.query = query
-        day = lambda f: datetime.fromtimestamp(f.mtime).strftime("%Y-%m-%d")  # noqa: E731
-        files = [f for f in self.files if matches(query, f"{f.path} {day(f)}", f.size)]
+        files = self.files if not query.strip() else [
+            f for f in self.files if matches(query, f"{f.path} {fmt_date(f.mtime)}", f.size)
+        ]
         files = files[:MAX_ROWS]
         self.setSortingEnabled(False)
         self.setRowCount(len(files))
         for i, f in enumerate(files):
-            day = datetime.fromtimestamp(f.mtime).strftime("%Y-%m-%d")
+            day = fmt_date(f.mtime)
             self.setItem(i, 0, SortItem(fmt_size(f.size), f.size))
             self.setItem(i, 1, SortItem(day, f.mtime))
             self.setItem(i, 2, QTableWidgetItem(f.path))
@@ -626,14 +637,18 @@ class Duplicates(QWidget):
         if not confirm(self, tr("rec.confirm_title"), text, "\n".join(paths)):
             return
 
-        def finished(outcome):
-            for item in chosen:
-                item.parent().removeChild(item)
-            self.win.show_report(outcome)
+        batch = journal.new_batch()
 
-        def job(progress, _cancelled):
+        def finished(outcome):
+            removed = {e["path"] for e in journal.load() if e.get("batch") == batch}
+            for item in chosen:
+                if item.text(0) in removed:  # skipped or cancelled ones stay listed
+                    item.parent().removeChild(item)
+            self.win.show_report(outcome, batch)
+
+        def job(progress, cancelled):
             return actions.delete(
-                paths, paths, source="duplicates",
+                paths, paths, source="duplicates", batch=batch, cancelled=cancelled,
                 progress=lambda i, n, path: progress((i, n), path),
             )
 
@@ -829,7 +844,7 @@ class JournalTab(QWidget):
         self.reload()
 
     def reload(self) -> None:
-        entries = journal.load()[::-1]
+        entries = journal.load()[::-1][:MAX_LOG_ROWS]
         self.table.setSortingEnabled(False)
         self.table.setRowCount(len(entries))
         for i, e in enumerate(entries):
@@ -838,7 +853,9 @@ class JournalTab(QWidget):
             self.table.setItem(i, 0, when)
             self.table.setItem(i, 1, SortItem(fmt_size(e["size"]), e["size"]))
             self.table.setItem(i, 2, QTableWidgetItem(tr(f"log.mode.{e['mode']}")))
-            self.table.setItem(i, 3, QTableWidgetItem(tr(f"log.state.{e['state']}")))
+            kept_in_place = e["mode"] == journal.COMPRESSED and e["state"] == "removed"
+            state = "compressed" if kept_in_place else e["state"]
+            self.table.setItem(i, 3, QTableWidgetItem(tr(f"log.state.{state}")))
             self.table.setItem(i, 4, QTableWidgetItem(e["path"]))
         self.table.setSortingEnabled(True)
         self.selection_changed()
@@ -868,7 +885,10 @@ class JournalTab(QWidget):
             box.exec()
             self.reload()
 
-        self.win.run(lambda _p, _c: actions.restore_last(), finished)
+        self.win.run(
+            lambda p, _c: actions.restore_last(lambda i, n, path: p((i, n), path)),
+            finished, lambda pair, _path: self.win.set_progress(*pair),
+        )
 
     def restore_selected(self) -> None:
         entry = self.selected()

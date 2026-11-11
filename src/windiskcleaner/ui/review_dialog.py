@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -19,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from windiskcleaner import actions, advisor, journal
-from windiskcleaner.strings import fmt_size, tr
+from windiskcleaner.strings import fmt_date, fmt_size, tr
 
 DELETE, MOVE, KEEP = "delete", "move", "keep"
 
@@ -112,7 +111,7 @@ class ReviewDialog(QDialog):
         self.back.setEnabled(i > 0)
         self.counter.setText(tr("rev.counter", i=i + 1, n=len(self.items)))
         self.name.setText(os.path.basename(item.path))
-        modified = datetime.fromtimestamp(item.mtime).strftime("%Y-%m-%d")
+        modified = fmt_date(item.mtime)
         self.detail.setText(
             tr("rev.detail", size=fmt_size(item.size), modified=modified, path=item.path)
         )
@@ -165,17 +164,19 @@ class ReviewDialog(QDialog):
 
         total = len(delete) + len(move)
 
-        def job(progress, _cancelled):
+        def job(progress, cancelled):
             outcome = actions.delete(
-                delete, roots, source=rec_id, batch=batch,
+                delete, roots, source=rec_id, batch=batch, cancelled=cancelled,
                 progress=lambda i, _n, path: progress((i, total), path),
             )
             if move:
                 outcome.merge(actions.move(
-                    move, destination, source=rec_id, batch=batch,
+                    move, destination, source=rec_id, batch=batch, cancelled=cancelled,
                     progress=lambda i, _n, path: progress((len(delete) + i, total), path),
                 ))
             return outcome
 
-        self.win.run(job, self.win.show_report, self.win.item_progress)
-        self.accept()
+        started = self.win.run(job, lambda outcome: self.win.show_report(outcome, batch),
+                               self.win.item_progress)
+        if started:
+            self.accept()

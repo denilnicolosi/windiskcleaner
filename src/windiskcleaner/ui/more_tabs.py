@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
 
 from PySide6.QtWidgets import (
     QComboBox,
@@ -18,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from windiskcleaner import actions, advisor, compress, history
-from windiskcleaner.strings import fmt_size, tr
+from windiskcleaner.strings import fmt_date, fmt_size, tr
 from windiskcleaner.ui.widgets import RIGHT, ROLE, SortItem, confirm, make_table, with_filter
 
 
@@ -140,8 +139,8 @@ class CompressTab(QWidget):
                                    tr("cmp.confirm", path=path, algo=algorithm)):
             return
 
-        def job(_progress, _cancelled):
-            report = actions.compress(path, algorithm, source="compress")
+        def job(_progress, cancelled):
+            report = actions.compress(path, algorithm, source="compress", cancelled=cancelled)
             return report, compress.on_disk(path)
 
         def done(out):
@@ -161,8 +160,8 @@ class CompressTab(QWidget):
         if not path or not confirm(self, tr("cmp.uncompress"), tr("cmp.un_confirm", path=path)):
             return
 
-        def job(_progress, _cancelled):
-            grown = actions.uncompress(path)
+        def job(_progress, cancelled):
+            grown = actions.uncompress(path, cancelled)
             return grown, compress.on_disk(path)
 
         def done(out):
@@ -301,8 +300,7 @@ class GamesTab(QWidget):
             size = SortItem(fmt_size(game.size) if game.size else "", game.size)
             size.setTextAlignment(RIGHT)
             self.table.setItem(i, 2, size)
-            played = (datetime.fromtimestamp(game.last_played).strftime("%Y-%m-%d")
-                      if game.last_played else tr("games.never"))
+            played = fmt_date(game.last_played) if game.last_played else tr("games.never")
             self.table.setItem(i, 3, SortItem(played, game.last_played))
             self.table.setItem(i, 4, QTableWidgetItem(game.path))
         self.table.setSortingEnabled(True)

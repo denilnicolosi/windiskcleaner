@@ -42,7 +42,7 @@ def test_candidates_are_big_catalogue_folders_inside_the_scan(tmp_path, make, mo
 
 def test_compress_refuses_windows_roots_and_exclusions(tmp_path, make, monkeypatch):
     calls = []
-    monkeypatch.setattr(actions, "_compact", lambda folder, sw: calls.append(sw))
+    monkeypatch.setattr(actions, "_compact", lambda folder, sw, cancelled=None: calls.append(sw))
     monkeypatch.setenv("WINDIR", str(tmp_path / "Windows"))
     make("Windows/System32/x.dll", 10)
     make("mine/a.bin", 10)
@@ -60,11 +60,13 @@ def test_compress_refuses_windows_roots_and_exclusions(tmp_path, make, monkeypat
 def test_compressed_entry_is_restored_by_decompressing(tmp_path, make, monkeypatch):
     calls = []
 
-    def fake(folder, switches):
+    def fake(folder, switches, cancelled=None):
         calls.append(switches)
         return subprocess.CompletedProcess([], 0, "", "")
 
     monkeypatch.setattr(actions, "_compact", fake)
+    sizes = iter([(10, 10, 1), (10, 4, 1), (10, 4, 1), (10, 10, 1)])
+    monkeypatch.setattr(compress, "on_disk", lambda _path: next(sizes))
     make("app/a.bin", 10)
     actions.compress(str(tmp_path / "app"), "LZX")
     entry = journal.load()[-1]

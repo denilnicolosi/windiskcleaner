@@ -329,7 +329,7 @@ def _app_caches(result: ScanResult, covered: list[str]) -> Recommendation | None
     """Web caches of Electron and WebView2 apps (Discord, WhatsApp, VS Code forks, new
     Outlook…), recognised by their layout rather than by name: a folder holding both
     "Code Cache" and "Cache" or "GPUCache"."""
-    found = []
+    found, owners = [], set()
     for node in _appdata_nodes(result, 3):
         names = {name.lower() for name in _subdirs(node.path)}
         if "code cache" not in names or not names & {"cache", "gpucache"}:
@@ -340,6 +340,7 @@ def _app_caches(result: ScanResult, covered: list[str]) -> Recommendation | None
             if os.path.isdir(path) and not any(c == k or under(k, c) or under(c, k)
                                                for c in covered):
                 found.append(path)
+                owners.add(node.name + ".exe")  # usually the app's folder and exe share a name
     sizes = {p: measure(p, result) for p in found}
     found = [p for p in found if sizes[p]]
     if not found:
@@ -360,6 +361,7 @@ def _app_caches(result: ScanResult, covered: list[str]) -> Recommendation | None
             "quelle app: i file in uso vengono saltati.",
         )),
         sum(sizes[p] for p in found), found, question=pick(question("app_caches")), expand=True,
+        process="|".join(sorted(owners)),
     )
 
 
@@ -465,6 +467,17 @@ def _belongs(folder: str, core: str) -> bool:
     return n == core or core.startswith(n) and len(n) >= 5 or n.startswith(core)
 
 
+def _publisher(program) -> str:
+    words = program.publisher.split()
+    return _norm(words[0]) if words else ""
+
+
+def _cores(program) -> set[str]:
+    """The program's core name, also without its publisher: "Microsoft Teams" is "teams" too."""
+    core, publisher = _core(program.name), _publisher(program)
+    return {core, core[len(publisher):]} if publisher and core.startswith(publisher) else {core}
+
+
 def leftovers(program, installed: Iterable, exclude: Iterable[str] = ()) -> Recommendation | None:
     """Folders a removed program left in AppData, LocalLow and ProgramData (Revo-style).
 
@@ -472,11 +485,11 @@ def leftovers(program, installed: Iterable, exclude: Iterable[str] = ()) -> Reco
     live data. A folder that also fits a program still installed is never proposed.
     """
     core = _core(program.name)
-    others = [_core(p.name) for p in installed if p.name != program.name]
+    others = {c for p in installed if p.name != program.name for c in _cores(p)}
     # Another version is still installed (PyCharm 2025.1 removed, 2025.2 kept): only
     # folders carrying the removed version's own number qualify.
     version = "".join(re.findall(r"\d+", program.name)) if core in others else ""
-    publisher = _norm(program.publisher.split()[0]) if program.publisher.split() else ""
+    publisher = _publisher(program)
     profile = os.environ.get("USERPROFILE", "")
     bases = [os.environ.get(v, "") for v in ("LOCALAPPDATA", "APPDATA", "PROGRAMDATA")]
     bases += [os.path.join(profile, "AppData", "LocalLow")] if profile else []
@@ -484,7 +497,7 @@ def leftovers(program, installed: Iterable, exclude: Iterable[str] = ()) -> Reco
     found: list[str] = []
 
     # "Microsoft Teams classic" also matches a folder called "Teams".
-    cores = {core, core[len(publisher):]} if publisher and core.startswith(publisher) else {core}
+    cores = _cores(program)
 
     def consider(path: str) -> None:
         name = os.path.basename(path)
@@ -563,13 +576,26 @@ def build(
 
 
 def _without(rec: Recommendation, keys: list[str], result: ScanResult) -> Recommendation | None:
-    """`rec` minus the paths the user excluded; None if nothing is left of it."""
-    kept = [p for p in rec.paths if not actions.excluded_hit(key(p), keys)]
-    if len(kept) == len(rec.paths):
+    """`rec` minus the paths the user excluded; None if nothing is left of it.
+
+    A folder that is emptied item by item (rec.expand) stays when an exclusion lies inside
+    it: only the item holding the exclusion is left alone, by actions.delete too."""
+    kept, spared = [], set()
+    for path in rec.paths:
+        k = key(path)
+        if any(k == e or under(k, e) for e in keys):
+            continue
+        inside = [e for e in keys if under(e, k)]
+        if inside and not rec.expand:
+            continue  # removing it whole would take the exclusion along
+        kept.append(path)
+        spared |= {os.path.join(path, e[len(k) + 1:].split(os.sep)[0]) for e in inside}
+    if len(kept) == len(rec.paths) and not spared:
         return rec
     if not kept:
         return None
-    rec.paths, rec.size = kept, sum(measure(p, result) for p in kept)
+    total = sum(measure(p, result) for p in kept) - sum(measure(p, result) for p in spared)
+    rec.paths, rec.size = kept, max(0, total)
     return rec
 
 
@@ -577,6 +603,8 @@ def review_items(rec: Recommendation, result: ScanResult | None = None) -> list[
     """What the guided check asks about, biggest first: the items themselves, or for a
     catalogue folder (rec.expand) what it contains."""
     targets = actions.preview(rec.paths) if rec.expand else rec.paths
+    skip = actions.excluded()
+    targets = [t for t in targets if not actions.excluded_hit(key(t), skip)]
     items = []
     for path in targets:
         try:

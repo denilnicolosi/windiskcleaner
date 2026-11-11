@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime
 
 LANG: str | None = None  # resolved on first use; tests may set it
 
@@ -30,9 +31,17 @@ def pick(text: str | tuple[str, str]) -> str:
     return text[1] if language() == "it" else text[0]
 
 
-def tr(name: str, **kw) -> str:
+def tr(name: str, /, **kw) -> str:
     text = pick(S[name])
     return text.format(**kw) if kw else text
+
+
+def fmt_date(timestamp: float) -> str:
+    """YYYY-MM-DD, or "" for dates Windows cannot convert (before 1970, damaged files)."""
+    try:
+        return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d")
+    except (OSError, OverflowError, ValueError):
+        return ""
 
 
 def fmt_size(n: int) -> str:
@@ -457,6 +466,20 @@ S.update({
     "log.mode.permanent": ("Deleted for good", "Eliminato definitivamente"),
     "log.mode.moved": ("Moved to another drive", "Spostato su altro disco"),
     "log.state.removed": ("Removed", "Rimosso"),
+    "log.state.compressed": ("Compressed", "Compresso"),
+    "log.state.purged": ("Deleted from the bin", "Eliminato dal Cestino"),
+    "bin.purge": ("Free {size} now", "Libera {size} adesso"),
+    "bin.purge_confirm": (
+        "Permanently delete from the Recycle Bin the {size} this cleanup just put there? The "
+        "rest of the bin is not touched. These items can no longer be restored.",
+        "Eliminare definitivamente dal Cestino i {size} appena messi da questa pulizia? Il "
+        "resto del Cestino non viene toccato. Questi elementi non si potranno più ripristinare.",
+    ),
+    "bin.purged": ("{size} freed.", "{size} liberati."),
+    "ui.busy": ("Another operation is running: wait for it to finish.",
+                "È in corso un'altra operazione: attendi che finisca."),
+    "ui.closing": ("Stopping the current operation, then closing…",
+                   "Interrompo l'operazione in corso, poi chiudo…"),
     "log.state.restored": ("Restored", "Ripristinato"),
     "bin.open": ("Open Recycle Bin", "Apri Cestino"),
     "bin.empty": ("Empty Recycle Bin…", "Svuota Cestino…"),

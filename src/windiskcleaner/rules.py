@@ -72,7 +72,7 @@ class Rule:
     commands: tuple[Command, ...] = ()  # run only when the user clicks one
     tool: str = ""  # executable, shell: folder or ms-settings: URI; "a|b" = first that exists
     permanent: bool = False  # DELETE bypasses the Recycle Bin (temporary files only)
-    process: str = ""  # executable to close first ("chrome.exe"): the UI warns if it runs
+    process: str = ""  # executables to close first ("a.exe|b.exe"): the UI warns if they run
 
     def resolve(self) -> list[str]:
         """Existing paths this rule points at on this machine."""
@@ -117,17 +117,18 @@ RESTORE_POINT = Command(
 
 _BROWSER_WHY = (
     "Copies of web pages, scripts, compiled shaders and downloaded components kept to load "
-    "sites faster. Rebuilt as you browse; logins, bookmarks and site data are not touched. "
-    "Close the browser first.",
+    "sites faster. Rebuilt as you browse; logins and bookmarks are not touched. Web apps "
+    "that work offline download their offline copy again. Close the browser first.",
     "Copie di pagine, script, shader compilati e componenti scaricati tenute per caricare i "
-    "siti più in fretta. Si ricreano navigando; accessi, preferiti e dati dei siti non vengono "
-    "toccati. Chiudi prima il browser.",
+    "siti più in fretta. Si ricreano navigando; accessi e preferiti non vengono toccati. Le "
+    "web app che funzionano offline riscaricano la loro copia offline. Chiudi prima il "
+    "browser.",
 )
 _UPDATE_WHY = (
     "Installers of updates that are already installed, kept by the programs' updaters "
-    "(Electron, Squirrel). A program downloads its next update again when needed.",
+    "(Electron). A program downloads its next update again when needed.",
     "Installer di aggiornamenti già installati, tenuti dagli updater dei programmi "
-    "(Electron, Squirrel). Il programma riscarica l'aggiornamento successivo quando serve.",
+    "(Electron). Il programma riscarica l'aggiornamento successivo quando serve.",
 )
 _PKG_WHY = (
     "Downloaded packages kept to speed up future installs. Installed environments keep "
@@ -215,8 +216,18 @@ RULES: tuple[Rule, ...] = (
     # ---- developer caches: safe ------------------------------------------------------
     Rule("pip_cache", "dev", (rf"{L}\pip\cache",), Safety.SAFE, Action.DELETE,
          "pip cache", _PKG_WHY),
-    Rule("uv_cache", "dev", (rf"{L}\uv\cache",), Safety.SAFE, Action.DELETE,
-         "uv cache", _PKG_WHY),
+    Rule(
+        # Not DELETE: its folders hold too many files for the Recycle Bin (measured: 3.5 GB
+        # proposed, 16 MB removed), and environments hard-link into it.
+        "uv_cache", "dev", (rf"{L}\uv\cache",), Safety.CAUTION, Action.GUIDE,
+        "uv cache", _PKG_WHY,
+        commands=(
+            Command(("Remove unused entries", "Rimuovi le voci inutilizzate"),
+                    ("uv", "cache", "prune"), changes=True),
+            Command(("Empty the cache", "Svuota la cache"), ("uv", "cache", "clean"),
+                    changes=True),
+        ),
+    ),
     Rule("npm_cache", "dev", (rf"{L}\npm-cache\_cacache", rf"{R}\npm-cache\_cacache"),
          Safety.SAFE, Action.DELETE, "npm cache", _PKG_WHY),
     Rule("yarn_cache", "dev", (rf"{L}\Yarn\Cache",), Safety.SAFE, Action.DELETE,
@@ -272,10 +283,23 @@ RULES: tuple[Rule, ...] = (
     Rule(
         "app_update_leftovers", "apps",
         (rf"{L}\*-updater\installer.exe", rf"{L}\*-updater\pending", rf"{L}\*-updater\package.7z",
-         rf"{L}\*\packages\*.nupkg", rf"{L}\Docker Desktop Installer\update-*.exe"),
+         rf"{L}\Docker Desktop Installer\update-*.exe"),
         Safety.SAFE, Action.DELETE,
         ("Leftover update installers", "Installer di aggiornamento rimasti"),
         _UPDATE_WHY,
+    ),
+    Rule(
+        "squirrel_packages", "apps", (rf"{L}\*\packages\*.nupkg",),
+        Safety.CAUTION, Action.REVIEW,
+        ("Update packages of self-updating apps", "Pacchetti di aggiornamento delle app"),
+        (
+            "Packages kept by apps that update themselves with Squirrel. The latest one can "
+            "be the base of the next small update: without it the app may need a full "
+            "download.",
+            "Pacchetti tenuti dalle app che si aggiornano da sole con Squirrel. L'ultimo può "
+            "servire come base del prossimo piccolo aggiornamento: senza, l'app potrebbe "
+            "dover riscaricare tutto.",
+        ),
     ),
     Rule(
         "shader_caches", "apps",
@@ -764,6 +788,7 @@ QUESTIONS: dict[str, Text] = {
                          "I tuoi progetti Functions usano ancora questa versione?"),
     "teams_classic": ("Classic Teams is retired. Remove this part of it?",
                       "Teams classico è ritirato. Rimuovere questa sua parte?"),
+    "squirrel_packages": ("Remove this update package?", "Rimuovere questo pacchetto?"),
     "winapp2": ("The community rules call this a cache. Delete the folder?",
                 "Le regole della community la indicano come cache. Eliminare la cartella?"),
     "old_versions": ("A newer version is installed. Remove this old one?",

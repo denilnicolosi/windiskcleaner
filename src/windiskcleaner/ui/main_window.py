@@ -31,6 +31,7 @@ from windiskcleaner import (
     advisor,
     games,
     history,
+    journal,
     report,
     rules,
     settings,
@@ -78,6 +79,8 @@ class MainWindow(QMainWindow):
         self.result = self.programs = self.recs = self.release = None
         self.session = actions.Report()  # everything removed since the program started
         self.skip_summary = False
+        self.close_when_idle = False
+        self.growth: tuple | None = None  # (previous scan, this scan) for "What changed"
         self.workers: list[Worker] = []
         self.side_workers: list[Worker] = []  # update check/download: do not block scanning
 
@@ -172,7 +175,12 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.progress_bar)
 
     # ---- background work -------------------------------------------------------------
-    def run(self, fn, on_done, on_progress=None) -> None:
+    def run(self, fn, on_done, on_progress=None) -> bool:
+        """Start a job; False if another one is running (one at a time: they share the
+        journal and the scan tree)."""
+        if any(w.isRunning() for w in self.workers):
+            self.status.setText(tr("ui.busy"))
+            return False
         worker = Worker(fn)
         self.workers.append(worker)
         worker.done.connect(on_done)
@@ -185,6 +193,7 @@ class MainWindow(QMainWindow):
         self.cancel_button.setEnabled(True)
         self.set_progress(0, 0)  # busy until the job reports how far it is
         worker.start()
+        return True
 
     def finished(self, worker: Worker) -> None:
         self.workers.remove(worker)
@@ -195,6 +204,8 @@ class MainWindow(QMainWindow):
         if not busy:
             self.progress_bar.hide()
             self.activity.clear()
+            if self.close_when_idle:
+                self.close()
 
     def set_progress(self, done: int, total: int) -> None:
         """Bottom progress bar; total <= 0 shows a busy indicator."""
@@ -259,7 +270,9 @@ class MainWindow(QMainWindow):
 
         self.run(job, self.on_scan_done, on_progress)
 
-    def on_scan_done(self, payload) -> None:
+    def on_scan_done(self, payload, growth: tuple | None = None) -> None:
+        """Show a scan. `growth` is given when the same scan is shown again (new language or
+        settings): it must not be recorded twice and compared with itself."""
         self.result, self.programs, self.recs = result, programs, recs = payload
         logger.info("scan done: %s, %d bytes, %d files, %.0f s, %d unreadable, %d advice items",
                     result.root.path, result.root.size, result.root.files, result.seconds,
@@ -281,11 +294,15 @@ class MainWindow(QMainWindow):
         found = games.installed_games()
         self.games_tab.load(found)
         self.tabs.setTabVisible(self.tabs.indexOf(self.games_tab), bool(found))
-        try:
-            before = history.previous(root.path)
-            self.growth_tab.load(before, history.save(result))
-        except OSError as err:  # a full or read-only data folder must not spoil the scan
-            logger.warning("scan history not saved: %s", err)
+        if growth is None:
+            try:
+                before = history.previous(root.path)
+                growth = (before, history.save(result))
+            except OSError as err:  # a full or read-only data folder must not spoil the scan
+                logger.warning("scan history not saved: %s", err)
+        self.growth = growth
+        if growth:
+            self.growth_tab.load(*growth)
         best = self.archive_destination()
         free = next((v.free for v in self.volumes if v.root == best), 0)
         self.archive_hint.setText(
@@ -304,7 +321,7 @@ class MainWindow(QMainWindow):
         return best.root if best else ""
 
     # ---- results ---------------------------------------------------------------------
-    def show_report(self, outcome: actions.Report) -> None:
+    def show_report(self, outcome: actions.Report, batch: str = "") -> None:
         self.session.merge(outcome)
         self.journal_tab.reload()
         lines = [tr("rec.result", n=outcome.deleted, size=fmt_size(outcome.freed),
@@ -317,7 +334,30 @@ class MainWindow(QMainWindow):
         )
         if outcome.skipped:
             box.setDetailedText("\n".join(f"{p} — {why}" for p, why in outcome.skipped[:MAX_ROWS]))
+        purge = None
+        if outcome.trashed and batch:
+            purge = box.addButton(tr("bin.purge", size=fmt_size(outcome.trashed)),
+                                  QMessageBox.ButtonRole.ActionRole)
         box.exec()
+        if purge is not None and box.clickedButton() is purge:
+            self.purge(batch, outcome.trashed)
+
+    def purge(self, batch: str, size: int) -> None:
+        """Free the space of one cleanup at once, leaving the rest of the bin alone."""
+        if not confirm(self, tr("bin.empty"), tr("bin.purge_confirm", size=fmt_size(size))):
+            return
+
+        def done(report):
+            self.session.trashed = max(0, self.session.trashed - report.permanent)
+            self.session.permanent += report.permanent
+            self.journal_tab.reload()
+            QMessageBox.information(self, tr("bin.empty"),
+                                    tr("bin.purged", size=fmt_size(report.permanent)))
+
+        self.run(
+            lambda p, c: actions.purge_batch(batch, lambda i, n, path: p((i, n), path), c),
+            done, self.item_progress,
+        )
 
     def empty_bin(self) -> None:
         size = actions.recycle_bin_size()
@@ -365,14 +405,24 @@ class MainWindow(QMainWindow):
         """Rebuild the window in the new language, keeping the scan and the session totals."""
         chosen = self.settings["language"]
         strings.LANG = chosen if chosen != "auto" else None
+        if not self.result:
+            self.replace_window(None)
+            return
+        result, programs = self.result, self.programs
+        old_days, exclude = self.settings["old_days"], self.settings["exclude"]
+        # Off the UI thread: folders deeper than the scan tree are measured from disk.
+        self.run(
+            lambda _p, _c: advisor.build(result, programs=programs, old_days=old_days,
+                                         exclude=exclude),
+            self.replace_window,
+        )
+
+    def replace_window(self, recs) -> None:
         fresh = MainWindow()
         fresh.session = self.session
-        if self.result:
-            recs = advisor.build(
-                self.result, programs=self.programs, old_days=self.settings["old_days"],
-                exclude=self.settings["exclude"],
-            )
-            fresh.on_scan_done((self.result, self.programs, recs))
+        if recs is not None:
+            fresh.on_scan_done((self.result, self.programs, recs), self.growth or (None, {}))
+        fresh.tabs.setCurrentIndex(self.tabs.currentIndex())
         _WINDOWS.append(fresh)
         fresh.show()
         self.skip_summary = True
@@ -446,8 +496,14 @@ class MainWindow(QMainWindow):
 
     # ---- closing ---------------------------------------------------------------------
     def closeEvent(self, event) -> None:
-        self.cancel()
-        for worker in [*self.workers, *self.side_workers]:
+        if any(w.isRunning() for w in self.workers):
+            # Never destroy a running job: ask it to stop and close when it has.
+            self.cancel()
+            self.close_when_idle = True
+            self.activity.setText(tr("ui.closing"))
+            event.ignore()
+            return
+        for worker in self.side_workers:
             worker.wait(5000)
         if self.session.deleted and not self.skip_summary:
             self.closing_summary()
@@ -491,6 +547,7 @@ def run() -> int:
     if values["language"] != "auto":
         strings.LANG = values["language"]
     apply_theme(values["theme"])
+    journal.trim()
     if updates.can_self_update():
         updates.cleanup()
     window = MainWindow()

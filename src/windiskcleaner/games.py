@@ -26,6 +26,14 @@ class Game:
     app_id: str = ""
 
 
+def _number(value) -> int:
+    """A number from a launcher's file; 0 when it is missing or damaged."""
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 _TOKEN = re.compile(r'"((?:[^"\\]|\\.)*)"|([{}])')
 
 
@@ -63,21 +71,22 @@ def _read(path: str) -> str:
 def steam_games(steam_root: str) -> list[Game]:
     libraries = {os.path.normpath(steam_root)}
     folders = vdf(_read(os.path.join(steam_root, "steamapps", "libraryfolders.vdf")))
-    for entry in folders.get("libraryfolders", {}).values():
-        if isinstance(entry, dict) and entry.get("path"):
+    listed = folders.get("libraryfolders", {})
+    for entry in listed.values() if isinstance(listed, dict) else ():
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str):
             libraries.add(os.path.normpath(entry["path"]))
     games = []
     for library in sorted(libraries):
         apps = os.path.join(library, "steamapps")
         for manifest in glob.glob(os.path.join(glob.escape(apps), "appmanifest_*.acf")):
             state = vdf(_read(manifest)).get("AppState", {})
-            if not state.get("installdir"):
+            if not isinstance(state, dict) or not isinstance(state.get("installdir"), str):
                 continue
             games.append(Game(
                 state.get("name", state["installdir"]), "Steam",
                 os.path.join(apps, "common", state["installdir"]),
-                int(state.get("SizeOnDisk", "0") or 0),
-                float(state.get("LastPlayed", "0") or 0),
+                _number(state.get("SizeOnDisk")),
+                float(_number(state.get("LastPlayed"))),
                 state.get("appid", ""),
             ))
     return games
@@ -90,10 +99,10 @@ def epic_games(manifests: str) -> list[Game]:
             data = json.loads(_read(item))
         except ValueError:
             continue
-        if data.get("InstallLocation"):
+        if isinstance(data, dict) and isinstance(data.get("InstallLocation"), str):
             games.append(Game(
                 data.get("DisplayName", data.get("AppName", "?")), "Epic",
-                os.path.normpath(data["InstallLocation"]), int(data.get("InstallSize", 0) or 0),
+                os.path.normpath(data["InstallLocation"]), _number(data.get("InstallSize")),
                 app_id=data.get("AppName", ""),
             ))
     return games

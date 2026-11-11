@@ -5,7 +5,7 @@ never downloads it. Its entries are not checked like the catalogue, so they only
 suggestions for the guided check, one folder at a time, never a one-click cleanup.
 
 Only the simplest, safest part of the format is used: FileKeys that empty a whole folder
-("folder|*.*"). Entries with exclusions or warnings are skipped.
+("folder|*.*|RECURSE"). Entries with exclusions or warnings are skipped.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from windiskcleaner import rules, settings
 
 FILE_NAME = "winapp2.ini"
 WHOLE_FOLDER = {"*", "*.*"}
+WHOLE_TREE = {"RECURSE", "REMOVESELF"}  # without one, only the top-level files
 
 
 @dataclass(frozen=True)
@@ -46,12 +47,14 @@ def parse(text: str) -> list[Entry]:
             if not k.startswith("filekey"):
                 continue
             parts = value.split("|")
-            if len(parts) >= 2 and parts[1].strip() in WHOLE_FOLDER and "\\" in parts[0]:
+            flags = {flag.strip().upper() for flag in parts[2:]}
+            if (len(parts) >= 2 and parts[1].strip() in WHOLE_FOLDER and flags & WHOLE_TREE
+                    and "\\" in parts[0]):
                 folders.append(parts[0].strip().rstrip("\\"))
         if folders:
             entries.append(Entry(name, tuple(folders)))
 
-    for raw in text.splitlines():
+    for raw in text.lstrip("\ufeff").splitlines():
         line = raw.strip()
         if not line or line.startswith(";"):
             continue

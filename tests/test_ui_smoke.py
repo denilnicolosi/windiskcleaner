@@ -101,7 +101,7 @@ def test_guided_check_collects_choices_then_deletes_once(app, tmp_path, make, mo
 
     trashed = []
     monkeypatch.setattr(actions, "_qt_trash", lambda p: trashed.append(p) or os.rename(p, p + "~"))
-    monkeypatch.setattr(window, "show_report", lambda outcome: trashed.append(outcome))
+    monkeypatch.setattr(window, "show_report", lambda outcome, batch="": trashed.append(outcome))
     dialog.run()
     for worker in list(window.workers):
         worker.wait(5000)
@@ -118,7 +118,7 @@ def test_overview_delete_updates_sizes(app, tmp_path, make, monkeypatch):
     before = result.root.size
     monkeypatch.setattr("windiskcleaner.ui.tabs.confirm", lambda *a, **k: True)
     monkeypatch.setattr(actions, "_qt_trash", lambda p: os.rename(p, p + "~"))
-    monkeypatch.setattr(window, "show_report", lambda outcome: None)
+    monkeypatch.setattr(window, "show_report", lambda outcome, batch="": None)
     window.overview.delete(node)
     for worker in list(window.workers):
         worker.wait(5000)

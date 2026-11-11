@@ -17,6 +17,7 @@ from windiskcleaner.scanner import key, scan, under
 # The one-file exe unpacks itself into %TEMP%: cleaning temporary files must not delete it.
 _OWN_RUNTIME = key(sys._MEIPASS) if hasattr(sys, "_MEIPASS") else ""
 ARCHIVE_FOLDER = "WinDiskCleaner-Archive"
+MAX_LOGGED_SKIPS = 25
 
 
 @dataclass
@@ -43,8 +44,10 @@ def _logged(what: str, report: Report) -> Report:
     logger.info("%s: %d items, %d bytes (bin %d, permanent %d, moved %d), %d skipped", what,
                 report.deleted, report.freed, report.trashed, report.permanent, report.moved,
                 len(report.skipped))
-    for path, why in report.skipped:
+    for path, why in report.skipped[:MAX_LOGGED_SKIPS]:
         logger.warning("%s skipped: %s (%s)", what, path, why)
+    if len(report.skipped) > MAX_LOGGED_SKIPS:  # one line each would flood the 1 MB log
+        logger.warning("%s: %d more skipped", what, len(report.skipped) - MAX_LOGGED_SKIPS)
     return report
 
 
@@ -100,6 +103,20 @@ def preview(targets: Iterable[str]) -> list[str]:
     return items
 
 
+def _why_not_trashed(path: str) -> str:
+    """Qt only says it failed: find the likely reason, for the report and the log."""
+    if len(path) >= 260:
+        return "path too long for the Recycle Bin"
+    if os.path.isdir(path):
+        return "a file inside is in use, or the folder is too big for the Recycle Bin"
+    try:
+        with open(path, "r+b"):
+            pass
+    except OSError as err:
+        return f"in use or locked: {err.strerror}"
+    return "the Recycle Bin refused it"
+
+
 def _qt_trash(path: str) -> str:
     """Move to the Recycle Bin; returns where the item now is, when Windows tells."""
     from PySide6.QtCore import QFile  # imported lazily: this module stays usable without Qt
@@ -107,7 +124,7 @@ def _qt_trash(path: str) -> str:
     # The instance method (not the static one) renames the QFile to its place in the bin.
     handle = QFile(path)
     if not handle.moveToTrash():
-        raise OSError("could not move to the Recycle Bin")
+        raise OSError(_why_not_trashed(path))
     where = os.path.normpath(handle.fileName())
     return where if key(where) != key(path) else ""
 
@@ -136,6 +153,7 @@ def delete(
     source: str = "",
     progress: Callable[[int, int, str], None] | None = None,
     batch: str = "",
+    cancelled: Callable[[], bool] | None = None,
 ) -> Report:
     """Remove `items`, each of which must lie inside one of `roots` (or be a root file).
 
@@ -149,6 +167,8 @@ def delete(
     report = Report()
     items = list(items)
     for i, item in enumerate(items):
+        if cancelled and cancelled():
+            break  # what was done stays done and is in the journal
         if progress:
             progress(i, len(items), item)
         k = key(item)
@@ -212,6 +232,7 @@ def move(
     source: str = "",
     progress: Callable[[int, int, str], None] | None = None,
     batch: str = "",
+    cancelled: Callable[[], bool] | None = None,
 ) -> Report:
     """Move `items` to another drive: copy, verify, and only then remove the original."""
     report = Report()
@@ -219,6 +240,8 @@ def move(
     batch = batch or journal.new_batch()
     items = list(items)
     for i, item in enumerate(items):
+        if cancelled and cancelled():
+            break
         if progress:
             progress(i, len(items), item)
         if excluded_hit(key(item), skip):
@@ -271,12 +294,21 @@ def _unlink(path: str) -> None:
         pass
 
 
-def _compact(folder: str, switches: list[str]) -> subprocess.CompletedProcess:
+def _compact(folder: str, switches: list[str],
+             cancelled: Callable[[], bool] | None = None) -> subprocess.CompletedProcess:
     # Run inside the folder with "*": no path on the command line, so nothing to quote.
-    return subprocess.run(
-        ["compact.exe", *switches, "/S", "/I", "/Q", "*"], cwd=folder, capture_output=True,
-        text=True, errors="replace", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    argv = ["compact.exe", *switches, "/S", "/I", "/Q", "*"]
+    process = subprocess.Popen(
+        argv, cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        errors="replace", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
+    while True:
+        try:
+            out, err = process.communicate(timeout=0.5)
+            return subprocess.CompletedProcess(argv, process.returncode, out, err)
+        except subprocess.TimeoutExpired:
+            if cancelled and cancelled():
+                process.kill()  # files already done stay compressed, each one is whole
 
 
 def _compress_refusal(path: str, skip: Iterable[str]) -> str:
@@ -292,7 +324,7 @@ def _compress_refusal(path: str, skip: Iterable[str]) -> str:
 
 
 def compress(path: str, algorithm: str = wof.DEFAULT, *, source: str = "",
-             batch: str = "") -> Report:
+             batch: str = "", cancelled: Callable[[], bool] | None = None) -> Report:
     """Compress a folder in place with Windows' compact.exe. Nothing is removed; undone
     by `uncompress` (or Restore in the Log tab). Slow on big folders: run it in a worker."""
     if algorithm not in wof.ALGORITHMS:
@@ -304,16 +336,18 @@ def compress(path: str, algorithm: str = wof.DEFAULT, *, source: str = "",
         return _logged(f"compress [{source}]", report)
     _logical, before, files = wof.on_disk(path)
     try:
-        done = _compact(path, ["/C", f"/EXE:{algorithm}"])
+        done = _compact(path, ["/C", f"/EXE:{algorithm}"], cancelled)
     except OSError as err:
         report.skipped.append((path, str(err)))
         return _logged(f"compress [{source}]", report)
     after = wof.on_disk(path)[1]
     report.compressed = report.freed = max(0, before - after)
     report.deleted = 0
-    if done.returncode and not report.compressed:
-        tail = (done.stdout or done.stderr).strip().splitlines()[-1:] or ["compact.exe failed"]
-        report.skipped.append((path, tail[0]))
+    if not report.compressed:
+        tail = (done.stdout or done.stderr).strip().splitlines()[-1:] if done.returncode else []
+        report.skipped.append((path, tail[0] if tail else (
+            "nothing saved: already compressed, not compressible, in use, or administrator "
+            "rights are needed")))
     else:
         journal.add(path, report.compressed, files, journal.COMPRESSED, algorithm, source,
                     batch or journal.new_batch())
@@ -321,10 +355,10 @@ def compress(path: str, algorithm: str = wof.DEFAULT, *, source: str = "",
     return _logged(f"compress [{source}]", report)
 
 
-def uncompress(path: str) -> int:
+def uncompress(path: str, cancelled: Callable[[], bool] | None = None) -> int:
     """Undo `compress`. Returns the bytes the folder takes again. Raises OSError."""
     before = wof.on_disk(path)[1]
-    done = _compact(path, ["/U", "/EXE"])
+    done = _compact(path, ["/U", "/EXE"], cancelled)
     after = wof.on_disk(path)[1]
     logger.info("uncompress %s: %d -> %d bytes on disk (exit %d)", path, before, after,
                 done.returncode)
@@ -336,6 +370,11 @@ def uncompress(path: str) -> int:
 
 def restore(entry: dict) -> None:
     """Put a journal entry back where it was. Raises OSError with the reason if it cannot."""
+    _put_back(entry)
+    journal.mark_restored(entry["id"])
+
+
+def _put_back(entry: dict) -> None:
     location, original = entry.get("location", ""), entry["path"]
     if entry.get("state") == "restored":
         raise OSError("already restored")
@@ -343,7 +382,6 @@ def restore(entry: dict) -> None:
         if not os.path.isdir(original):
             raise OSError("the folder is no longer there")
         uncompress(original)
-        journal.mark_restored(entry["id"])
         return
     if entry["mode"] == journal.PERMANENT:
         raise OSError("deleted permanently: it cannot be recovered")
@@ -360,30 +398,74 @@ def restore(entry: dict) -> None:
         folder, name = os.path.split(location)
         if name.upper().startswith("$R"):
             _unlink(os.path.join(folder, "$I" + name[2:]))
-    journal.mark_restored(entry["id"])
 
 
-def restore_last() -> tuple[list[str], list[tuple[str, str]]]:
+def restore_last(
+    progress: Callable[[int, int, str], None] | None = None,
+) -> tuple[list[str], list[tuple[str, str]]]:
     """Put back everything of the most recent cleanup that can come back.
     Returns (restored paths, [(path, reason)]). Permanent deletions are not attempted."""
     entries = journal.load()
     batches = [e.get("batch") for e in entries if e.get("batch")]
     if not batches:
         return [], []
-    done, failed = [], []
-    for entry in entries:
-        if (entry.get("batch") != batches[-1] or entry["state"] != "removed"
-                or entry["mode"] == journal.PERMANENT):
-            continue
+    todo = [e for e in entries if e.get("batch") == batches[-1] and e["state"] == "removed"
+            and e["mode"] != journal.PERMANENT]
+    done, failed, ids = [], [], []
+    for i, entry in enumerate(todo):
+        if progress:
+            progress(i, len(todo), entry["path"])
         try:
-            restore(entry)
+            _put_back(entry)
             done.append(entry["path"])
+            ids.append(entry["id"])
         except OSError as err:
             failed.append((entry["path"], str(err)))
+    journal.mark(ids, "restored")  # one rewrite: per item it took minutes on a big cleanup
     logger.info("restore last cleanup: %d restored, %d failed", len(done), len(failed))
-    for path, why in failed:
+    for path, why in failed[:MAX_LOGGED_SKIPS]:
         logger.warning("restore failed: %s (%s)", path, why)
     return done, failed
+
+
+def purge_batch(
+    batch: str,
+    progress: Callable[[int, int, str], None] | None = None,
+    cancelled: Callable[[], bool] | None = None,
+) -> Report:
+    """Permanently delete from the Recycle Bin what one cleanup put there, and nothing else.
+    The caller has asked the user first. Only real bin items ($R… in $Recycle.Bin) qualify."""
+    report = Report()
+    todo = [e for e in journal.load() if e.get("batch") == batch and e["mode"] == journal.TRASH
+            and e["state"] == "removed" and e.get("location")]
+    ids = []
+    for i, entry in enumerate(todo):
+        if cancelled and cancelled():
+            break
+        location = entry["location"]
+        if progress:
+            progress(i, len(todo), location)
+        folder, name = os.path.split(location)
+        if not name.upper().startswith("$R") or "$recycle.bin" not in key(folder).split(os.sep):
+            report.skipped.append((location, "not an item of the Recycle Bin"))
+            continue
+        far = _long(location)
+        if not os.path.lexists(far):
+            continue  # already gone: the bin was emptied
+        if _is_dir(far):
+            shutil.rmtree(far, ignore_errors=True)
+        else:
+            _unlink(far)
+        if os.path.lexists(far):
+            report.skipped.append((location, "in use"))
+            continue
+        _unlink(os.path.join(folder, "$I" + name[2:]))
+        report.freed += entry.get("size", 0)
+        report.permanent += entry.get("size", 0)
+        report.deleted += 1
+        ids.append(entry["id"])
+    journal.mark(ids, "purged")
+    return _logged(f"purge [{batch}]", report)
 
 
 def recycle_bin_size() -> int:
